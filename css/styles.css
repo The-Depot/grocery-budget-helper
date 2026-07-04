@@ -735,10 +735,10 @@ header {
   justify-content: space-between;
   align-items: center;
   background: var(--bg-input);
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: var(--border-radius-sm);
   border: 1px solid var(--border-color);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .basket-item-quantity {
@@ -751,13 +751,15 @@ header {
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
 }
 
 .qty-btn:hover {
@@ -775,11 +777,11 @@ header {
 .total-row {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .total-row.grand-total {
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 700;
   font-family: var(--font-heading);
   color: var(--color-primary);
@@ -793,9 +795,9 @@ header {
 .nutri-meter-header {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .nutri-meter-bar {
@@ -821,9 +823,9 @@ header {
 .nutri-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 10px;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -834,8 +836,8 @@ header {
 }
 
 .legend-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
@@ -862,7 +864,7 @@ header {
 }
 
 .recipe-header h3 {
-  font-size: 16px;
+  font-size: 18px;
   flex-grow: 1;
 }
 
@@ -879,7 +881,7 @@ header {
 .recipe-meta-row {
   display: flex;
   gap: 12px;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-secondary);
   margin-bottom: 12px;
 }
@@ -891,17 +893,17 @@ header {
 }
 
 .recipe-ingredients {
-  font-size: 12px;
+  font-size: 13.5px;
   margin-bottom: 14px;
   background: var(--bg-input);
-  padding: 8px;
+  padding: 10px;
   border-radius: 6px;
 }
 
 .recipe-instructions {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-muted);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .matching-badge {
