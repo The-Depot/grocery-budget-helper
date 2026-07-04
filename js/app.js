@@ -577,10 +577,10 @@ function renderStaplesCatalog() {
     
     card.innerHTML = `
       <div class="staple-info">
-        <span style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">${item.category}</span>
+        <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">${item.category}</span>
         <h3 style="margin-top: 4px;">${item.name}</h3>
         <p class="serving-info">${item.servings} Servings (${item.unit})</p>
-        <p style="font-size: 11px; line-height: 1.3; color: var(--text-secondary);">${item.nutrients}</p>
+        <p style="font-size: 13.5px; line-height: 1.3; color: var(--text-secondary);">${item.nutrients}</p>
       </div>
       
       <div class="staple-price-row">
@@ -791,8 +791,8 @@ function updateRecipeHelper() {
         </div>
 
         <div class="recipe-ingredients">
-          <div style="font-weight: 600; font-size: 11px; margin-bottom: 4px; color: var(--text-secondary);">Ingredients Required:</div>
-          <p style="font-size: 11px; line-height: 1.4;">
+          <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-secondary);">Ingredients Required:</div>
+          <p style="font-size: 13px; line-height: 1.4;">
             ${recipe.ingredientsRequired.map(reqId => {
               const item = state.catalog.find(s => s.id === reqId);
               const inCart = userStaples.has(reqId);
