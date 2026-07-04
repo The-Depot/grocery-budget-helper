@@ -65,7 +65,8 @@ function updateThemeButtonIcon() {
 // Setup Event Listeners
 function setupEventListeners() {
   // Theme toggle
-  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 
   // Tab switching
   const tabButtons = document.querySelectorAll('.tab-btn');
@@ -74,10 +75,12 @@ function setupEventListeners() {
       const targetTab = btn.dataset.tab;
       
       tabButtons.forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      const contents = document.querySelectorAll('.tab-content');
+      contents.forEach(c => c.classList.remove('active'));
       
       btn.classList.add('active');
-      document.getElementById(targetTab).classList.add('active');
+      const targetEl = document.getElementById(targetTab);
+      if (targetEl) targetEl.classList.add('active');
 
       // Re-trigger layout updates for charts if needed
       if (targetTab === 'dashboard-tab') {
@@ -88,16 +91,19 @@ function setupEventListeners() {
 
   // Target Budget Input
   const budgetInput = document.getElementById('target-budget-input');
-  budgetInput.value = state.targetBudget;
-  budgetInput.addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value) || 0;
-    state.targetBudget = val;
-    updateCalculations();
-    saveToLocalStorage();
-  });
+  if (budgetInput) {
+    budgetInput.value = state.targetBudget;
+    budgetInput.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value) || 0;
+      state.targetBudget = val;
+      updateCalculations();
+      saveToLocalStorage();
+    });
+  }
 
   // Add Household Member
-  document.getElementById('add-member-btn').addEventListener('click', addHouseholdMember);
+  const addMemberBtn = document.getElementById('add-member-btn');
+  if (addMemberBtn) addMemberBtn.addEventListener('click', addHouseholdMember);
 
   // Swap Category Filters
   setupSwapFilters();
@@ -826,8 +832,10 @@ function setupScanner() {
   const fileInput = document.getElementById('scanner-file-input');
   
   const openAction = () => {
-    modal.style.display = 'flex';
-    startCameraScanner();
+    if (modal) {
+      modal.style.display = 'flex';
+      startCameraScanner();
+    }
   };
   
   if (btnOpen) btnOpen.addEventListener('click', openAction);
@@ -837,15 +845,25 @@ function setupScanner() {
     closeScanner();
   });
   
-  fileInput.addEventListener('change', handleFileScan);
+  if (fileInput) fileInput.addEventListener('change', handleFileScan);
   
-  document.getElementById('btn-rescan').addEventListener('click', () => {
-    resetScannerUI();
-    startCameraScanner();
-  });
+  const btnRescan = document.getElementById('btn-rescan');
+  if (btnRescan) {
+    btnRescan.addEventListener('click', () => {
+      resetScannerUI();
+      startCameraScanner();
+    });
+  }
   
-  document.getElementById('btn-add-scanned-to-cart').addEventListener('click', addScannedProductToCart);
-  document.getElementById('btn-add-manual-to-cart').addEventListener('click', addManualProductToCart);
+  const btnAddScanned = document.getElementById('btn-add-scanned-to-cart');
+  if (btnAddScanned) {
+    btnAddScanned.addEventListener('click', addScannedProductToCart);
+  }
+  
+  const btnAddManual = document.getElementById('btn-add-manual-to-cart');
+  if (btnAddManual) {
+    btnAddManual.addEventListener('click', addManualProductToCart);
+  }
 }
 
 function startCameraScanner() {
