@@ -12,6 +12,7 @@
   
   <!-- Stylesheets -->
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.json">
   
   <!-- Chart.js CDN for Interactive Graphs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -210,8 +211,24 @@
               <div class="card-title-container" style="align-items: center; flex-wrap: wrap; gap: 8px;">
                 <h2><span class="icon">🛒</span> My Shopping Basket</h2>
                 <div style="display: flex; gap: 6px; align-items: center;">
+                  <button class="btn btn-secondary btn-xs" id="btn-templates-toggle" style="padding: 5px 8px; font-size: 11px;">📋 Templates</button>
                   <button class="btn btn-secondary btn-xs" id="btn-clear-basket" style="padding: 5px 8px; font-size: 11px;">Clear</button>
                   <button class="btn btn-primary btn-xs" id="btn-open-scanner" style="padding: 6px 10px; font-size: 13px;">📷 Scan Item</button>
+                </div>
+              </div>
+
+              <!-- Templates Management Panel -->
+              <div id="templates-panel" style="display: none; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 13px; flex-direction: column;">
+                <div style="font-weight: 600; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span>Saved Templates</span>
+                  <button onclick="document.getElementById('templates-panel').style.display='none'" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 0;">✕</button>
+                </div>
+                <div id="templates-list-container" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; max-height: 120px; overflow-y: auto;">
+                  <!-- List of templates -->
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <input type="text" id="template-name-input" placeholder="Template name..." style="flex-grow: 1; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 12px; width: 60%;">
+                  <button class="btn btn-primary btn-xs" id="btn-save-template-action" style="padding: 5px 8px; font-size: 11px; white-space: nowrap;">Save Current</button>
                 </div>
               </div>
               
@@ -222,7 +239,7 @@
               
               <div class="basket-totals">
                 <div class="total-row">
-                  <span>Weekly Budget Allocation:</span>
+                  <span id="weekly-budget-target-label">Weekly Budget Allocation:</span>
                   <span id="weekly-budget-target-val" style="font-weight: 600;">$0.00</span>
                 </div>
                 <div class="total-row grand-total" style="margin-bottom: 4px;">

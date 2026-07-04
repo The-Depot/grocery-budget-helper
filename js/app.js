@@ -22,7 +22,9 @@ const state = {
   staplesSearchQuery: '',
   catalog: [...STAPLES_CATALOG], // Runtime mutable catalog copy
   taxActive: false,
-  checkedItems: new Set()
+  checkedItems: new Set(),
+  customPrices: {},
+  templates: {}
 };
 
 // Global Chart Reference
@@ -144,6 +146,33 @@ function setupEventListeners() {
   const btnCopy = document.getElementById('btn-copy-list');
   if (btnCopy) {
     btnCopy.addEventListener('click', copyListToClipboard);
+  }
+
+  // Templates panel toggle button
+  const btnTemplatesToggle = document.getElementById('btn-templates-toggle');
+  if (btnTemplatesToggle) {
+    btnTemplatesToggle.addEventListener('click', () => {
+      const panel = document.getElementById('templates-panel');
+      if (panel) {
+        if (panel.style.display === 'none') {
+          panel.style.display = 'flex';
+          renderTemplatesList();
+        } else {
+          panel.style.display = 'none';
+        }
+      }
+    });
+  }
+
+  // Save template action button
+  const btnSaveTemplateAction = document.getElementById('btn-save-template-action');
+  if (btnSaveTemplateAction) {
+    btnSaveTemplateAction.addEventListener('click', () => {
+      const input = document.getElementById('template-name-input');
+      if (input) {
+        saveCurrentAsTemplate(input.value);
+      }
+    });
   }
 }
 
@@ -586,8 +615,8 @@ function renderStaplesCatalog() {
       </div>
       
       <div class="staple-price-row">
-        <div class="staple-price">
-          $${item.price.toFixed(2)}
+        <div class="staple-price" onclick="window.editItemPrice('${item.id}')" title="Click to edit local price" style="cursor: pointer; border-bottom: 1px dotted var(--border-color);">
+          $${item.price.toFixed(2)} <span style="font-size: 11px; opacity: 0.6;">✏️</span>
           <small>$${item.costPerServing.toFixed(2)} / serving</small>
         </div>
         
@@ -627,6 +656,34 @@ window.adjustCartQty = function(id, amount) {
   updateRecipeHelper();
 };
 
+window.editItemPrice = function(id) {
+  const item = state.catalog.find(s => s.id === id);
+  if (!item) return;
+  
+  const currentPrice = item.price;
+  const newPriceStr = prompt(`Enter local price for ${item.name}:`, currentPrice.toFixed(2));
+  if (newPriceStr === null) return; // User cancelled
+  
+  const newPrice = parseFloat(newPriceStr);
+  if (isNaN(newPrice) || newPrice < 0) {
+    alert("Please enter a valid price.");
+    return;
+  }
+  
+  // Set custom price in state.customPrices dictionary
+  state.customPrices[id] = newPrice;
+  
+  // Update item in state.catalog
+  item.price = newPrice;
+  item.costPerServing = newPrice / (item.servings || 1);
+  
+  saveToLocalStorage();
+  renderStaplesCatalog();
+  renderBasket();
+  updateCartTotals();
+  updateRecipeHelper();
+};
+
 function renderBasket() {
   const list = document.getElementById('basket-items-list');
   list.innerHTML = '';
@@ -644,19 +701,58 @@ function renderBasket() {
     
     if (item) {
       const isChecked = state.checkedItems.has(id);
+      
+      // Determine if a healthy swap is recommended for this item name
+      const nameLower = item.name.toLowerCase();
+      let suggestedSwap = null;
+      if (nameLower.includes('soda') || nameLower.includes('coke') || nameLower.includes('pepsi') || nameLower.includes('sprite') || nameLower.includes('fanta') || nameLower.includes('pop')) {
+        suggestedSwap = HEALTHY_SWAPS.find(s => s.id === 'swap_soda');
+      } else if (nameLower.includes('cereal') || nameLower.includes('granola') || nameLower.includes('loops') || nameLower.includes('flakes')) {
+        suggestedSwap = HEALTHY_SWAPS.find(s => s.id === 'swap_cereal');
+      } else if (nameLower.includes('chip') || nameLower.includes('cracker') || nameLower.includes('snack') || nameLower.includes('dorito') || nameLower.includes('cheeto')) {
+        suggestedSwap = HEALTHY_SWAPS.find(s => s.id === 'swap_chips');
+      } else if (nameLower.includes('frozen meal') || nameLower.includes('microwavable') || nameLower.includes('tv dinner') || nameLower.includes('instant ramen')) {
+        suggestedSwap = HEALTHY_SWAPS.find(s => s.id === 'swap_frozen_meals');
+      } else if (nameLower.includes('yogurt') && (nameLower.includes('sweetened') || (item.nutrients && item.nutrients.toLowerCase().includes('sugar')))) {
+        suggestedSwap = HEALTHY_SWAPS.find(s => s.id === 'swap_yogurt');
+      }
+      
+      // If user already committed to this swap, don't show the recommend prompt again in the basket
+      if (suggestedSwap && state.activeSwaps.has(suggestedSwap.id)) {
+        suggestedSwap = null;
+      }
+      
       const row = document.createElement('div');
       row.className = `basket-item ${isChecked ? 'checked-off-row' : ''}`;
+      row.style.flexDirection = 'column';
+      row.style.alignItems = 'stretch';
+      row.style.gap = '8px';
+      
       row.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <input type="checkbox" class="basket-item-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;">
-          <span class="basket-item-name" style="font-weight: 500;">${item.name}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" class="basket-item-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;">
+            <div style="display: flex; flex-direction: column;">
+              <span class="basket-item-name" style="font-weight: 500;">${item.name}</span>
+              <span class="basket-item-price" onclick="window.editItemPrice('${item.id}')" style="font-size: 12px; color: var(--text-secondary); cursor: pointer; text-decoration: underline dotted;" title="Click to edit local price">
+                $${item.price.toFixed(2)} ea ✏️
+              </span>
+            </div>
+          </div>
+          <div class="basket-item-quantity">
+            <button class="qty-btn" onclick="adjustCartQty('${item.id}', -1)">-</button>
+            <span style="font-weight: 700; width: 14px; text-align: center;">${qty}</span>
+            <button class="qty-btn" onclick="adjustCartQty('${item.id}', 1)">+</button>
+            <span style="margin-left: 8px; width: 50px; text-align: right; font-family: var(--font-heading); font-weight: 600;">$${(item.price * qty).toFixed(2)}</span>
+          </div>
         </div>
-        <div class="basket-item-quantity">
-          <button class="qty-btn" onclick="adjustCartQty('${item.id}', -1)">-</button>
-          <span style="font-weight: 700; width: 14px; text-align: center;">${qty}</span>
-          <button class="qty-btn" onclick="adjustCartQty('${item.id}', 1)">+</button>
-          <span style="margin-left: 8px; width: 50px; text-align: right; font-family: var(--font-heading); font-weight: 600;">$${(item.price * qty).toFixed(2)}</span>
-        </div>
+        
+        ${suggestedSwap ? `
+          <div style="font-size: 12.5px; background: rgba(139, 92, 246, 0.08); border: 1px dashed rgba(139, 92, 246, 0.25); border-radius: 6px; padding: 6px 10px; margin-top: 2px; color: var(--color-accent); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+            <span>💡 Swap for <strong>${suggestedSwap.swappedName}</strong> (saves <strong>$${suggestedSwap.monthlySavings.toFixed(2)}/mo</strong>)?</span>
+            <button class="btn btn-primary btn-xs" onclick="window.applyInCartSwap('${item.id}', '${suggestedSwap.id}')" style="padding: 2px 6px; font-size: 11px; margin-left: auto;">Swap Now</button>
+          </div>
+        ` : ''}
       `;
       
       row.querySelector('.basket-item-checkbox').addEventListener('change', (e) => {
@@ -677,6 +773,56 @@ function toggleBasketItemChecked(id, isChecked) {
   saveToLocalStorage();
   renderBasket();
 }
+
+window.applyInCartSwap = function(itemId, swapId) {
+  // Add to active swaps to log monthly savings
+  state.activeSwaps.add(swapId);
+  
+  const swapToStapleMap = {
+    swap_cereal: 'staple_oats',
+    swap_chips: 'staple_apples',
+    swap_frozen_meals: 'staple_lentils',
+    swap_yogurt: 'staple_greek_yogurt'
+  };
+  
+  const targetStapleId = swapToStapleMap[swapId];
+  
+  if (targetStapleId) {
+    // Delete original item
+    delete state.cart[itemId];
+    // Add target staple
+    state.cart[targetStapleId] = (state.cart[targetStapleId] || 0) + 1;
+  } else if (swapId === 'swap_soda') {
+    // Special case for soda -> sparkling water
+    const waterId = 'staple_sparkling_water';
+    if (!state.catalog.some(s => s.id === waterId)) {
+      state.catalog.push({
+        id: waterId,
+        name: "Sparkling Water with Lime",
+        category: "Pantry",
+        price: 1.50,
+        unit: "6 pack cans",
+        servings: 6,
+        costPerServing: 0.25,
+        nutrients: "Zero sugar, hydration, vitamin C.",
+        calories: 0,
+        foodGroup: "Other"
+      });
+    }
+    delete state.cart[itemId];
+    state.cart[waterId] = (state.cart[waterId] || 0) + 1;
+  }
+  
+  saveToLocalStorage();
+  renderStaplesCatalog();
+  renderBasket();
+  updateCartTotals();
+  updateRecipeHelper();
+  renderSwaps();
+  updateSwapSavingsCount();
+  
+  alert("Swapped successfully! Your committed savings have been updated.");
+};
 
 function updateCartTotals() {
   let subtotal = 0;
@@ -712,9 +858,25 @@ function updateCartTotals() {
     ? `$${totalCost.toFixed(2)}*`
     : `$${subtotal.toFixed(2)}`;
   
-  // Weekly pacing - compare shopping list cost directly to weekly budget target
-  const weeklyTarget = state.targetBudget / 4.33; // 4.33 weeks per month average
-  document.getElementById('weekly-budget-target-val').innerText = `$${weeklyTarget.toFixed(2)}`;
+  // Dynamically calculate weeks in current calendar month based on days in the month
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeksInMonth = daysInMonth / 7;
+  const weeklyTarget = state.targetBudget / weeksInMonth;
+  
+  // Render dynamic labels
+  const labelEl = document.getElementById('weekly-budget-target-label');
+  if (labelEl) {
+    const monthName = now.toLocaleString('default', { month: 'long' });
+    labelEl.innerHTML = `Weekly Target (${monthName}, ${weeksInMonth.toFixed(2)} wks):`;
+  }
+  
+  const weeklyValEl = document.getElementById('weekly-budget-target-val');
+  if (weeklyValEl) {
+    weeklyValEl.innerText = `$${weeklyTarget.toFixed(2)}`;
+  }
   
   const pacingBar = document.getElementById('budget-pacing-bar');
   const pacingPercentVal = document.getElementById('budget-pacing-percent');
@@ -1266,6 +1428,28 @@ function loadFromLocalStorage() {
   } else {
     state.checkedItems = new Set();
   }
+
+  const savedPrices = localStorage.getItem('nutribudget-custom-prices');
+  if (savedPrices) {
+    state.customPrices = JSON.parse(savedPrices);
+    // Apply custom prices to catalog items
+    Object.entries(state.customPrices).forEach(([id, price]) => {
+      const item = state.catalog.find(s => s.id === id);
+      if (item) {
+        item.price = price;
+        item.costPerServing = price / (item.servings || 1);
+      }
+    });
+  } else {
+    state.customPrices = {};
+  }
+
+  const savedTemplates = localStorage.getItem('nutribudget-templates');
+  if (savedTemplates) {
+    state.templates = JSON.parse(savedTemplates);
+  } else {
+    state.templates = {};
+  }
 }
 
 function saveToLocalStorage() {
@@ -1278,6 +1462,8 @@ function saveToLocalStorage() {
   localStorage.setItem('nutribudget-custom-items', JSON.stringify(customItems));
   localStorage.setItem('nutribudget-tax-active', state.taxActive ? 'true' : 'false');
   localStorage.setItem('nutribudget-checked-items', JSON.stringify(Array.from(state.checkedItems)));
+  localStorage.setItem('nutribudget-custom-prices', JSON.stringify(state.customPrices));
+  localStorage.setItem('nutribudget-templates', JSON.stringify(state.templates));
 }
 
 // ==========================================
@@ -1335,5 +1521,127 @@ function copyListToClipboard() {
     }, 2000);
   }).catch(err => {
     alert("Could not copy list: " + err);
+  });
+}
+
+// ==========================================
+// TEMPLATES MANAGEMENT HELPERS
+// ==========================================
+function renderTemplatesList() {
+  const container = document.getElementById('templates-list-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  const names = Object.keys(state.templates);
+  if (names.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 11px; text-align: center; padding: 10px 0;">No templates saved yet.</div>`;
+    return;
+  }
+  
+  names.forEach(name => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+    row.style.background = 'rgba(255,255,255,0.02)';
+    row.style.padding = '6px 8px';
+    row.style.borderRadius = '4px';
+    row.style.border = '1px solid var(--border-color)';
+    row.style.fontSize = '12px';
+    
+    row.innerHTML = `
+      <span style="font-weight: 500;">${name}</span>
+      <div style="display: flex; gap: 4px;">
+        <button class="btn btn-secondary btn-xs" onclick="window.loadTemplate('${name}')" style="padding: 2px 6px; font-size: 10px;">Load</button>
+        <button class="btn btn-danger btn-xs" onclick="window.deleteTemplate('${name}')" style="padding: 2px 6px; font-size: 10px; background-color: var(--color-danger); border-color: var(--color-danger);">✕</button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+window.saveCurrentAsTemplate = function(name) {
+  name = name.trim();
+  if (!name) {
+    alert("Please enter a name for the template.");
+    return;
+  }
+  if (Object.keys(state.cart).length === 0) {
+    alert("Your shopping cart is empty! Add some items before saving a template.");
+    return;
+  }
+  
+  // Save cart items and catalog items (for scanned custom items)
+  const cartCopy = {...state.cart};
+  
+  // Filter custom items in this template so we can restore them if loaded
+  const customItemsInTemplate = state.catalog.filter(item => {
+    return (item.id.startsWith('scanned_') || item.id.startsWith('manual_')) && (state.cart[item.id] !== undefined);
+  });
+  
+  state.templates[name] = {
+    cart: cartCopy,
+    customItems: customItemsInTemplate
+  };
+  
+  saveToLocalStorage();
+  renderTemplatesList();
+  
+  const input = document.getElementById('template-name-input');
+  if (input) input.value = '';
+  
+  alert(`Template "${name}" saved successfully!`);
+};
+
+window.loadTemplate = function(name) {
+  const template = state.templates[name];
+  if (!template) return;
+  
+  if (confirm(`Are you sure you want to load template "${name}"? This will replace your current basket.`)) {
+    // 1. Clear current checked items
+    state.checkedItems.clear();
+    
+    // 2. Load custom items into state.catalog if not present
+    if (template.customItems) {
+      template.customItems.forEach(c => {
+        if (!state.catalog.some(item => item.id === c.id)) {
+          state.catalog.push(c);
+        }
+      });
+    }
+    
+    // 3. Load cart
+    state.cart = {...template.cart};
+    
+    saveToLocalStorage();
+    renderStaplesCatalog();
+    renderBasket();
+    updateCartTotals();
+    updateRecipeHelper();
+    
+    // Close panel
+    const panel = document.getElementById('templates-panel');
+    if (panel) panel.style.display = 'none';
+    
+    alert(`Template "${name}" loaded!`);
+  }
+};
+
+window.deleteTemplate = function(name) {
+  if (confirm(`Delete template "${name}"?`)) {
+    delete state.templates[name];
+    saveToLocalStorage();
+    renderTemplatesList();
+  }
+};
+
+// ==========================================
+// SERVICE WORKER REGISTRATION (PWA)
+// ==========================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[Service Worker] Registered successfully:', reg.scope))
+      .catch(err => console.error('[Service Worker] Registration failed:', err));
   });
 }
