@@ -21,7 +21,8 @@ const state = {
   staplesCategoryFilter: 'All',
   staplesSearchQuery: '',
   catalog: [...STAPLES_CATALOG], // Runtime mutable catalog copy
-  taxActive: false
+  taxActive: false,
+  checkedItems: new Set()
 };
 
 // Global Chart Reference
@@ -129,6 +130,7 @@ function setupEventListeners() {
       if (Object.keys(state.cart).length === 0) return;
       if (confirm("Are you sure you want to clear your shopping list?")) {
         state.cart = {};
+        state.checkedItems.clear();
         saveToLocalStorage();
         renderStaplesCatalog();
         renderBasket();
@@ -641,10 +643,14 @@ function renderBasket() {
     const qty = state.cart[id];
     
     if (item) {
+      const isChecked = state.checkedItems.has(id);
       const row = document.createElement('div');
-      row.className = 'basket-item';
+      row.className = `basket-item ${isChecked ? 'checked-off-row' : ''}`;
       row.innerHTML = `
-        <div style="font-weight: 500;">${item.name}</div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" class="basket-item-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;">
+          <span class="basket-item-name" style="font-weight: 500;">${item.name}</span>
+        </div>
         <div class="basket-item-quantity">
           <button class="qty-btn" onclick="adjustCartQty('${item.id}', -1)">-</button>
           <span style="font-weight: 700; width: 14px; text-align: center;">${qty}</span>
@@ -652,9 +658,24 @@ function renderBasket() {
           <span style="margin-left: 8px; width: 50px; text-align: right; font-family: var(--font-heading); font-weight: 600;">$${(item.price * qty).toFixed(2)}</span>
         </div>
       `;
+      
+      row.querySelector('.basket-item-checkbox').addEventListener('change', (e) => {
+        toggleBasketItemChecked(item.id, e.target.checked);
+      });
+      
       list.appendChild(row);
     }
   });
+}
+
+function toggleBasketItemChecked(id, isChecked) {
+  if (isChecked) {
+    state.checkedItems.add(id);
+  } else {
+    state.checkedItems.delete(id);
+  }
+  saveToLocalStorage();
+  renderBasket();
 }
 
 function updateCartTotals() {
@@ -1238,6 +1259,13 @@ function loadFromLocalStorage() {
   } else {
     state.taxActive = false;
   }
+
+  const savedChecked = localStorage.getItem('nutribudget-checked-items');
+  if (savedChecked) {
+    state.checkedItems = new Set(JSON.parse(savedChecked));
+  } else {
+    state.checkedItems = new Set();
+  }
 }
 
 function saveToLocalStorage() {
@@ -1249,6 +1277,7 @@ function saveToLocalStorage() {
   const customItems = state.catalog.filter(item => item.id.startsWith('scanned_') || item.id.startsWith('manual_'));
   localStorage.setItem('nutribudget-custom-items', JSON.stringify(customItems));
   localStorage.setItem('nutribudget-tax-active', state.taxActive ? 'true' : 'false');
+  localStorage.setItem('nutribudget-checked-items', JSON.stringify(Array.from(state.checkedItems)));
 }
 
 // ==========================================

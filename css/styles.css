@@ -649,9 +649,16 @@ header {
   gap: 24px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .catalog-layout {
     grid-template-columns: 1fr;
+  }
+  .basket-summary-panel {
+    position: static;
+    margin-bottom: 24px;
+  }
+  .catalog-layout > div:last-child {
+    order: -1; /* Push Shopping Basket to the top of the screen on mobile/tablet */
   }
 }
 
@@ -673,17 +680,18 @@ header {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 200px;
+  min-height: 230px;
+  height: auto;
   background: var(--bg-card);
 }
 
 .staple-info h3 {
-  font-size: 15px;
+  font-size: 17px;
   margin-bottom: 4px;
 }
 
 .staple-info .serving-info {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
@@ -699,13 +707,13 @@ header {
 
 .staple-price {
   font-family: var(--font-heading);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--color-secondary);
 }
 
 .staple-price small {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
   font-weight: 400;
   display: block;
@@ -1024,5 +1032,18 @@ header {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Checked off item visual feedback in shopping list */
+.basket-item.checked-off-row {
+  opacity: 0.55;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  transition: all 0.25s ease;
+}
+
+.basket-item.checked-off-row .basket-item-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
 }
 
