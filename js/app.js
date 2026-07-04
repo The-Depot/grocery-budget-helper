@@ -691,7 +691,13 @@ function renderBasket() {
   const itemIds = Object.keys(state.cart);
   
   if (itemIds.length === 0) {
-    list.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 14px;">Your grocery list is empty. Add healthy staples to construct your basket.</div>`;
+    list.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 14.5px; line-height: 1.6;">
+        Your grocery list is empty.<br>
+        👇 <strong>Scroll down</strong> to browse & add healthy staples,<br>
+        or tap <strong>📷 Scan Item</strong> above to scan products!
+      </div>
+    `;
     return;
   }
 
