@@ -1221,8 +1221,29 @@ function displayScannedProduct(barcode, product) {
   // Evaluate nutrition warnings & swaps
   evaluateNutritionAndSwaps(currentScannedProduct);
   
-  // Set default price
-  document.getElementById('scanned-product-price').value = "2.99";
+  // Pre-fill price from customPrices if previously entered, otherwise guess average by food group
+  const existingId = `scanned_${barcode}`;
+  const savedPrice = state.customPrices[existingId];
+  if (savedPrice !== undefined) {
+    document.getElementById('scanned-product-price').value = savedPrice.toFixed(2);
+  } else {
+    const existing = state.catalog.find(s => s.id === existingId);
+    if (existing) {
+      document.getElementById('scanned-product-price').value = existing.price.toFixed(2);
+    } else {
+      const averagesByGroup = {
+        Proteins: 5.99,
+        Vegetables: 1.99,
+        Fruits: 2.49,
+        Dairy: 3.49,
+        Grains: 2.20,
+        Fats: 4.50,
+        Other: 2.99
+      };
+      const guessedPrice = averagesByGroup[guessedGroup] || 2.99;
+      document.getElementById('scanned-product-price').value = guessedPrice.toFixed(2);
+    }
+  }
   
   // Show data box
   document.getElementById('scanned-product-preview').style.display = 'block';
