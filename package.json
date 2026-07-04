@@ -1,0 +1,9 @@
+{
+  "name": "grocery-budget-helper",
+  "version": "1.0.0",
+  "description": "Smart Grocery Budget Helper",
+  "scripts": {
+    "dev": "npx -y http-server -p 3000 -o"
+  },
+  "dependencies": {}
+}

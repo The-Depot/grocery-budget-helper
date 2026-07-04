@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- SEO Meta Tags -->
+  <title>NutriBudget - Smart Grocery Budget Tracker & Healthy Swaps Coach</title>
+  <meta name="description" content="Manage your grocery budget, compare it with USDA national averages, discover cost-saving healthy food swaps, and build nutritious grocery lists on a budget.">
+  <meta name="keywords" content="grocery budget, food budget calculator, healthy eating budget, USDA food plans, grocery swaps, meal prep budget">
+  <meta name="author" content="NutriBudget Team">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Chart.js CDN for Interactive Graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- html5-qrcode CDN for Barcode/QR Scanning -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Header Section -->
+    <header>
+      <div class="logo-section">
+        <div class="logo-icon" id="logo-branding-icon">🥗</div>
+        <div class="logo-text">
+          <h1 id="app-main-heading">NutriBudget</h1>
+          <p>Optimize your groceries: Eat healthy, spend smart</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="card hoverable" id="monthly-savings-card" style="display: none; padding: 6px 14px; margin-bottom: 0; border-radius: 12px; background: rgba(16, 185, 129, 0.1);">
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); display: block; font-weight: 600;">Active Swaps Savings</span>
+          <span id="monthly-savings-value" style="font-family: var(--font-heading); font-size: 16px; font-weight: 700; color: var(--color-primary);">$0.00</span>
+        </div>
+        <button class="btn btn-primary" id="btn-open-scanner-header" style="padding: 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 8px;">📷 Scan Product</button>
+        <button class="theme-toggle-btn" id="theme-toggle" aria-label="Toggle Dark/Light Mode">☀️</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-navigation" aria-label="Main Navigation">
+      <button class="tab-btn active" id="tab-btn-dashboard" data-tab="dashboard-tab">
+        📊 Budget Dashboard
+      </button>
+      <button class="tab-btn" id="tab-btn-swaps" data-tab="swaps-tab">
+        🔄 Healthy Swaps Coach
+      </button>
+      <button class="tab-btn" id="tab-btn-basket" data-tab="basket-tab">
+        🛒 Smart Basket Builder
+      </button>
+    </nav>
+
+    <!-- Tab Content Area -->
+    <main>
+      
+      <!-- Tab 1: Dashboard -->
+      <section class="tab-content active" id="dashboard-tab">
+        <div class="grid-container">
+          
+          <!-- Setup Panel -->
+          <div class="card" style="grid-column: span 5;">
+            <div class="card-title-container">
+              <h2><span class="icon">⚙️</span> Household Profile</h2>
+            </div>
+            
+            <!-- Target Budget Input -->
+            <div class="form-group">
+              <label for="target-budget-input">Your Monthly Grocery Budget ($)</label>
+              <div class="input-wrapper">
+                <span class="input-prefix">$</span>
+                <input type="number" id="target-budget-input" class="form-control" min="0" placeholder="e.g. 500">
+              </div>
+              <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                Enter what you typically spend (or hope to spend) on groceries per month.
+              </p>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+            
+            <!-- Add Household Member -->
+            <div class="form-group">
+              <label for="member-category-select">Add Household Member</label>
+              <div style="display: flex; gap: 8px;">
+                <select id="member-category-select" class="form-control" aria-label="Household Member Category">
+                  <option value="adult_male_19_50" selected>Adult Male (19-50 yrs)</option>
+                  <option value="adult_female_19_50">Adult Female (19-50 yrs)</option>
+                  <option value="toddler_1_3">Toddler (1-3 yrs)</option>
+                  <option value="child_4_8">Child (4-8 yrs)</option>
+                  <option value="child_9_11">Child (9-11 yrs)</option>
+                  <option value="teen_male_12_18">Teen Male (12-18 yrs)</option>
+                  <option value="teen_female_12_18">Teen Female (12-18 yrs)</option>
+                  <option value="adult_male_51_70">Older Adult Male (51-70 yrs)</option>
+                  <option value="adult_female_51_70">Older Adult Female (51-70 yrs)</option>
+                  <option value="senior_male_71">Senior Male (71+ yrs)</option>
+                  <option value="senior_female_71">Senior Female (71+ yrs)</option>
+                </select>
+                <button class="btn btn-primary" id="add-member-btn">Add</button>
+              </div>
+            </div>
+
+            <!-- Household Members List -->
+            <h3 style="font-size: 14px; margin-bottom: 10px; color: var(--text-secondary);">Household Members</h3>
+            <div class="household-member-list" id="household-members">
+              <!-- Dynamically populated in app.js -->
+            </div>
+          </div>
+          
+          <!-- Comparisons Panel -->
+          <div class="card" style="grid-column: span 7;">
+            <div class="card-title-container">
+              <h2><span class="icon">📊</span> USDA Averages Comparison</h2>
+              <span style="font-size: 11px; color: var(--text-muted);">Adjusted for household size</span>
+            </div>
+            
+            <!-- Graphic Chart -->
+            <div class="chart-container">
+              <canvas id="budget-chart"></canvas>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+            
+            <!-- Insight text -->
+            <div class="form-group">
+              <h3 style="font-size: 14px; margin-bottom: 6px; color: var(--text-secondary);">Budget Insights</h3>
+              <p id="budget-summary-text" style="font-size: 13px; line-height: 1.5; color: var(--text-primary);">
+                <!-- Dynamic text analysis based on target vs. Thrifty calculation -->
+              </p>
+            </div>
+
+            <!-- Highlight Metrics -->
+            <div class="insights-panel" id="insight-metrics-panel">
+              <!-- Metric blocks populated by app.js -->
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+      <!-- Tab 2: Swaps Coach -->
+      <section class="tab-content" id="swaps-tab">
+        <div class="card" style="margin-bottom: 24px;">
+          <div class="swaps-header">
+            <div>
+              <h2><span class="icon">🔄</span> Healthy Food Swaps Coach</h2>
+              <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">
+                Trade out expensive processed foods for nutrition-packed alternatives. Commit to swaps to see your monthly savings grow!
+              </p>
+            </div>
+            <div class="swaps-filters" id="swaps-filter-chips">
+              <!-- Dynamic Filter Chips -->
+            </div>
+          </div>
+          
+          <div class="swaps-grid" id="swaps-list-grid">
+            <!-- Dynamically Populated Cards -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Staples Catalog & Cart -->
+      <section class="tab-content" id="basket-tab">
+        <div class="catalog-layout">
+          
+          <!-- Catalog List (Left) -->
+          <div>
+            <div class="card" style="margin-bottom: 24px;">
+              <div class="card-title-container" style="margin-bottom: 16px;">
+                <h2><span class="icon">🌾</span> Healthy Budget Staples</h2>
+                <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">
+                  Build a grocery list out of these nutrient-dense, low-cost essentials.
+                </p>
+              </div>
+              
+              <!-- Search & Filters -->
+              <div class="catalog-search-wrapper" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <input type="text" id="staple-search" class="form-control" placeholder="Search staples... (e.g. Oats, Beans)" style="flex: 1; min-width: 200px;">
+                <div class="swaps-filters" id="staples-filter-chips" style="flex-grow: 2;">
+                  <!-- Dynamic Category Filters -->
+                </div>
+              </div>
+              
+              <!-- Staples Grid -->
+              <div class="catalog-grid" id="staples-grid">
+                <!-- Dynamically populated card catalog -->
+              </div>
+            </div>
+            
+            <!-- Recipes Builder -->
+            <div class="card">
+              <div class="card-title-container">
+                <h2><span class="icon">🍳</span> Budget-Friendly Recipe Suggestions</h2>
+              </div>
+              <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">
+                These healthy, high-nutrition recipes use ingredients from the staples list. Add ingredients to your basket to unlock them!
+              </p>
+              
+              <div class="recipes-grid" id="recipes-list-grid">
+                <!-- Dynamically populated in app.js -->
+              </div>
+            </div>
+          </div>
+          
+          <!-- Basket Summary (Right) -->
+          <div>
+            <div class="card basket-summary-panel">
+              <div class="card-title-container" style="align-items: center; flex-wrap: wrap; gap: 8px;">
+                <h2><span class="icon">🛒</span> My Shopping Basket</h2>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <button class="btn btn-secondary btn-xs" id="btn-clear-basket" style="padding: 5px 8px; font-size: 11px;">Clear</button>
+                  <button class="btn btn-primary btn-xs" id="btn-open-scanner" style="padding: 6px 10px; font-size: 13px;">📷 Scan Item</button>
+                </div>
+              </div>
+              
+              <!-- Cart List -->
+              <div class="basket-list" id="basket-items-list">
+                <!-- Basket rows populated by app.js -->
+              </div>
+              
+              <div class="basket-totals">
+                <div class="total-row">
+                  <span>Weekly Budget Allocation:</span>
+                  <span id="weekly-budget-target-val" style="font-weight: 600;">$0.00</span>
+                </div>
+                <div class="total-row grand-total" style="margin-bottom: 4px;">
+                  <span>Basket Total:</span>
+                  <span id="basket-subtotal-val">$0.00</span>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 12px; font-size: 11px; color: var(--text-secondary);">
+                  <label for="tax-checkbox" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 0; user-select: none;">
+                    <input type="checkbox" id="tax-checkbox" style="cursor: pointer; margin: 0;">
+                    Include 5% estimated tax
+                  </label>
+                </div>
+                <button class="btn btn-secondary btn-xs" id="btn-copy-list" style="width: 100%; font-size: 12px; padding: 8px 12px; margin-top: 4px;">📋 Copy Shopping List</button>
+              </div>
+              
+              <!-- Weekly Pacing Progress -->
+              <div class="nutri-meter-container" style="margin-top: 16px;">
+                <div class="nutri-meter-header">
+                  <span>Weekly Pacing</span>
+                  <span id="budget-pacing-percent" style="font-weight: 700;">0%</span>
+                </div>
+                <div style="height: 10px; background: var(--bg-input); border-radius: 5px; overflow: hidden; margin-bottom: 6px;">
+                  <div id="budget-pacing-bar" style="width: 0%; height: 100%; transition: width 0.3s ease; background-color: var(--color-primary);"></div>
+                </div>
+                <div id="budget-pacing-label" style="font-size: 12px; line-height: 1.4; color: var(--text-secondary);">
+                  <!-- Pacing notifications -->
+                </div>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 8px 0;">
+
+              <!-- Nutrient Diversity Score -->
+              <div class="nutri-meter-container">
+                <div class="nutri-meter-header">
+                  <span>Nutrient Diversity Index</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">Food Group Ratios</span>
+                </div>
+                <div class="nutri-meter-bar">
+                  <div class="nutri-segment grains" id="segment-grains" style="width: 0%;"></div>
+                  <div class="nutri-segment proteins" id="segment-proteins" style="width: 0%;"></div>
+                  <div class="nutri-segment vegetables" id="segment-vegetables" style="width: 0%;"></div>
+                  <div class="nutri-segment fruits" id="segment-fruits" style="width: 0%;"></div>
+                  <div class="nutri-segment fats" id="segment-fats" style="width: 0%;"></div>
+                  <div class="nutri-segment dairy" id="segment-dairy" style="width: 0%;"></div>
+                </div>
+                <div class="nutri-legend">
+                  <div class="legend-item"><span class="legend-dot grains"></span>Grains</div>
+                  <div class="legend-item"><span class="legend-dot proteins"></span>Proteins</div>
+                  <div class="legend-item"><span class="legend-dot vegetables"></span>Veggies</div>
+                  <div class="legend-item"><span class="legend-dot fruits"></span>Fruits</div>
+                  <div class="legend-item"><span class="legend-dot fats"></span>Fats</div>
+                  <div class="legend-item"><span class="legend-dot dairy"></span>Dairy</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+    </main>
+    
+    <!-- Footer Section -->
+    <footer style="margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-muted); font-size: 12px;">
+      <p>NutriBudget. Baseline numbers are derived from the official USDA monthly Food Plans cost estimation reports.</p>
+      <p style="margin-top: 4px;">Designed to help people build healthy food habits on a doable, thrifty budget.</p>
+    </footer>
+    
+  </div>
+
+  <!-- Barcode Scanner Modal -->
+  <div class="scanner-modal" id="scanner-modal" style="display: none;">
+    <div class="scanner-modal-content card">
+      <div class="scanner-modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+        <h2 style="font-size: 20px; font-family: var(--font-heading); margin-bottom: 0; border: none; padding: 0; display: flex; align-items: center; gap: 8px;"><span class="icon">📷</span> Scan Grocery Item</h2>
+        <button class="scanner-close-btn" id="scanner-close-btn" aria-label="Close Scanner" style="background: none; border: none; color: var(--text-primary); font-size: 28px; cursor: pointer; line-height: 1;">&times;</button>
+      </div>
+      
+      <!-- Scanner Reader viewport -->
+      <div id="scanner-view-container">
+        <div id="scanner-reader" style="width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: #000;"></div>
+        
+        <!-- File upload fallback -->
+        <div id="scanner-upload-container" style="margin-top: 12px; text-align: center;">
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Camera blocked or not working? Upload product photo:</p>
+          <input type="file" id="scanner-file-input" accept="image/*" class="form-control" style="max-width: 280px; margin: 0 auto; padding: 6px 12px; font-size: 13px;">
+        </div>
+      </div>
+      
+      <!-- Scanned Product Preview Panel -->
+      <div id="scanned-product-preview" style="display: none; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+        <div id="scanner-loading-spinner" style="display: none; text-align: center; padding: 20px 0;">
+          <div class="spinner" style="display: inline-block; width: 30px; height: 30px; border: 3px solid rgba(16, 185, 129, 0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+          <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);">Querying database...</p>
+        </div>
+        
+        <div id="scanned-product-data" style="display: none;">
+          <!-- Left side image, right side facts -->
+          <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px;">
+            <img id="scanned-product-img" src="" alt="Product Image" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; background: rgba(0,0,0,0.1); border: 1px solid var(--border-color);">
+            <div style="flex: 1;">
+              <h3 id="scanned-product-title" style="font-size: 16px; font-family: var(--font-heading); margin-bottom: 2px;">Product Title</h3>
+              <p id="scanned-product-brand" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Brand Name</p>
+              <div id="scanned-product-nutriscore-container" style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px; color: var(--text-muted);">Nutri-Score:</span>
+                <span id="scanned-product-nutriscore" class="nutriscore-badge badge-c">C</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Pricing & Classification Inputs -->
+          <div class="grid-container" style="gap: 12px; margin-bottom: 16px;">
+            <div class="form-group" style="grid-column: span 6; margin-bottom: 0;">
+              <label for="scanned-product-price">Shelf Price ($)</label>
+              <div class="input-wrapper">
+                <span class="input-prefix">$</span>
+                <input type="number" id="scanned-product-price" class="form-control" step="0.01" min="0" value="2.99">
+              </div>
+            </div>
+            <div class="form-group" style="grid-column: span 6; margin-bottom: 0;">
+              <label for="scanned-product-group">Food Group</label>
+              <select id="scanned-product-group" class="form-control">
+                <option value="Grains">Grains</option>
+                <option value="Proteins">Proteins</option>
+                <option value="Vegetables">Vegetables</option>
+                <option value="Fruits">Fruits</option>
+                <option value="Fats">Healthy Fats</option>
+                <option value="Dairy">Dairy</option>
+                <option value="Other">Other / Treats</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Health Warning & Swap suggestions -->
+          <div id="scanned-health-warning" style="display: none; background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--color-danger); padding: 10px; border-radius: 6px; margin-bottom: 16px; font-size: 12px;">
+            <p id="scanned-health-warning-msg">This item contains high levels of sugar/sodium.</p>
+          </div>
+          
+          <div id="scanned-swap-suggestion" style="display: none; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+            <div style="font-weight: 600; font-size: 12px; color: var(--color-primary); display: flex; align-items: center; gap: 4px;">
+              <span>💡 Swap Tip:</span>
+            </div>
+            <p id="scanned-swap-text" style="font-size: 12px; line-height: 1.4; color: var(--text-secondary); margin-top: 4px;"></p>
+          </div>
+
+          <!-- Add to Basket / Rescan buttons -->
+          <div style="display: flex; gap: 12px;">
+            <button class="btn btn-primary" id="btn-add-scanned-to-cart" style="flex: 1; font-size: 13px;">Add to Basket</button>
+            <button class="btn btn-secondary" id="btn-rescan" style="flex: 1; font-size: 13px;">Scan Again</button>
+          </div>
+        </div>
+
+        <div id="scanned-product-error" style="display: none; text-align: center; padding: 12px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 8px; margin-bottom: 16px;">
+          <p style="font-size: 13px; color: var(--color-danger); font-weight: 500; margin-bottom: 12px;" id="scanner-error-msg">Product not found in database.</p>
+          
+          <!-- Manual fallback fields -->
+          <div style="text-align: left;">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="manual-product-name" style="margin-bottom: 4px;">Product Name</label>
+              <input type="text" id="manual-product-name" class="form-control" placeholder="e.g. Organic Strawberries">
+            </div>
+            <div class="grid-container" style="gap: 12px; margin-bottom: 16px;">
+              <div class="form-group" style="grid-column: span 6; margin-bottom: 0;">
+                <label for="manual-product-price" style="margin-bottom: 4px;">Shelf Price ($)</label>
+                <div class="input-wrapper">
+                  <span class="input-prefix">$</span>
+                  <input type="number" id="manual-product-price" class="form-control" step="0.01" min="0" value="2.99">
+                </div>
+              </div>
+              <div class="form-group" style="grid-column: span 6; margin-bottom: 0;">
+                <label for="manual-product-group" style="margin-bottom: 4px;">Food Group</label>
+                <select id="manual-product-group" class="form-control">
+                  <option value="Vegetables">Vegetables</option>
+                  <option value="Fruits">Fruits</option>
+                  <option value="Proteins">Proteins</option>
+                  <option value="Grains">Grains</option>
+                  <option value="Fats">Healthy Fats</option>
+                  <option value="Dairy">Dairy</option>
+                  <option value="Other">Other / Treats</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btn-add-manual-to-cart" style="width: 100%; font-size: 13px;">Add Manually to Basket</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main script logic -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
