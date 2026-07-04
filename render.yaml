@@ -1,0 +1,7 @@
+# render.yaml - Render Blueprint for Static Site Deployment
+services:
+  - type: web
+    name: grocery-budget-helper
+    env: static
+    buildCommand: ""
+    staticPublishPath: "."
