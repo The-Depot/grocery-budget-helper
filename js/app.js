@@ -26,7 +26,8 @@ const state = {
   checkedItems: new Set(),
   customPrices: {},
   templates: {},
-  scanHistory: []
+  scanHistory: [],
+  currentStore: 'Aldi'
 };
 
 const STAPLE_NUTRIENTS = {
@@ -76,10 +77,12 @@ let comparisonChart = null;
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   loadFromLocalStorage(); // Load saved preferences
+  updateCatalogPricesForCurrentStore(); // Map initial catalog prices to loaded store
   setupEventListeners();
   renderHousehold();
   renderSwaps();
   renderStaplesCatalog();
+  renderScanLog(); // Render the history log card
   setupScanner();
   updateCalculations();
 });
@@ -155,6 +158,22 @@ function setupEventListeners() {
 
   // Staples Category & Search Filters
   setupStaplesFilters();
+
+  // Store Selector Dropdown
+  const storeSelector = document.getElementById('store-selector');
+  if (storeSelector) {
+    storeSelector.value = state.currentStore;
+    storeSelector.addEventListener('change', (e) => {
+      state.currentStore = e.target.value;
+      saveToLocalStorage();
+      updateCatalogPricesForCurrentStore();
+      renderStaplesCatalog();
+      renderBasket();
+      updateCartTotals();
+      updateRecipeHelper();
+      renderScanLog();
+    });
+  }
 
   // Estimated Tax Checkbox
   const taxCheckbox = document.getElementById('tax-checkbox');
@@ -718,28 +737,34 @@ window.editItemPrice = function(id) {
   const item = state.catalog.find(s => s.id === id);
   if (!item) return;
   
-  const currentPrice = item.price;
-  const newPriceStr = prompt(`Enter local price for ${item.name}:`, currentPrice.toFixed(2));
-  if (newPriceStr === null) return; // User cancelled
+  const currentPrice = getItemPriceForStore(item, state.currentStore);
   
-  const newPrice = parseFloat(newPriceStr);
+  const promptVal = prompt(`Enter price for ${item.name} at ${state.currentStore} ($):`, currentPrice.toFixed(2));
+  if (promptVal === null) return; // User cancelled
+  
+  const newPrice = parseFloat(promptVal);
   if (isNaN(newPrice) || newPrice < 0) {
     alert("Please enter a valid price.");
     return;
   }
   
-  // Set custom price in state.customPrices dictionary
-  state.customPrices[id] = newPrice;
+  // Initialize customPrices sub-object if not present
+  if (!state.customPrices[id]) {
+    state.customPrices[id] = {};
+  }
   
-  // Update item in state.catalog
-  item.price = newPrice;
-  item.costPerServing = newPrice / (item.servings || 1);
+  // Save price for active store
+  state.customPrices[id][state.currentStore] = newPrice;
+  
+  // Instantly update catalog cache for active store
+  updateCatalogPricesForCurrentStore();
   
   saveToLocalStorage();
   renderStaplesCatalog();
   renderBasket();
   updateCartTotals();
   updateRecipeHelper();
+  renderScanLog();
 };
 
 function renderBasket() {
@@ -1036,6 +1061,57 @@ function updateCartTotals() {
       summaryEl.innerHTML = `🛒 Add items to see what percentage of your family's weekly nutrient targets are met by this basket.`;
     } else {
       summaryEl.innerHTML = `🌱 This basket provides <strong>${cartCalories.toLocaleString()} kcal</strong>, <strong>${cartProtein.toFixed(0)}g</strong> Protein, <strong>${cartFiber.toFixed(0)}g</strong> Fiber, and <strong>${cartCalcium.toLocaleString()}mg</strong> Calcium.`;
+    }
+  }
+
+  // ==========================================
+  // Update Supermarket Price Comparison
+  // ==========================================
+  let aldiSubtotal = 0;
+  let walmartSubtotal = 0;
+  let targetSubtotal = 0;
+
+  Object.entries(state.cart).forEach(([id, qty]) => {
+    const item = state.catalog.find(s => s.id === id);
+    if (item) {
+      aldiSubtotal += getItemPriceForStore(item, 'Aldi') * qty;
+      walmartSubtotal += getItemPriceForStore(item, 'Walmart') * qty;
+      targetSubtotal += getItemPriceForStore(item, 'Target') * qty;
+    }
+  });
+
+  const aldiTotal = state.taxActive ? aldiSubtotal * 1.05 : aldiSubtotal;
+  const walmartTotal = state.taxActive ? walmartSubtotal * 1.05 : walmartSubtotal;
+  const targetTotal = state.taxActive ? targetSubtotal * 1.05 : targetSubtotal;
+
+  const aldiValEl = document.getElementById('store-total-aldi');
+  const walmartValEl = document.getElementById('store-total-walmart');
+  const targetValEl = document.getElementById('store-total-target');
+
+  if (aldiValEl) aldiValEl.innerText = `$${aldiTotal.toFixed(2)}`;
+  if (walmartValEl) walmartValEl.innerText = `$${walmartTotal.toFixed(2)}`;
+  if (targetValEl) targetValEl.innerText = `$${targetTotal.toFixed(2)}`;
+
+  const recEl = document.getElementById('store-comparison-recommendation');
+  if (recEl) {
+    if (aldiSubtotal === 0) {
+      recEl.innerHTML = `Fill your basket to see comparative store savings!`;
+    } else {
+      const prices = [
+        { name: 'Aldi', price: aldiTotal },
+        { name: 'Walmart', price: walmartTotal },
+        { name: 'Target', price: targetTotal }
+      ];
+      prices.sort((a, b) => a.price - b.price);
+      const cheapest = prices[0];
+      const mostExpensive = prices[2];
+      const diff = mostExpensive.price - cheapest.price;
+      
+      if (diff > 0.05) {
+        recEl.innerHTML = `💡 <strong>${cheapest.name}</strong> is the cheapest option! Shopping there saves you about <strong>$${diff.toFixed(2)}</strong> compared to ${mostExpensive.name}.`;
+      } else {
+        recEl.innerHTML = `✅ Prices are relatively equal across all three supermarkets.`;
+      }
     }
   }
 }
@@ -1652,15 +1728,21 @@ function loadFromLocalStorage() {
 
   const savedPrices = localStorage.getItem('nutribudget-custom-prices');
   if (savedPrices) {
-    state.customPrices = JSON.parse(savedPrices);
-    // Apply custom prices to catalog items
-    Object.entries(state.customPrices).forEach(([id, price]) => {
-      const item = state.catalog.find(s => s.id === id);
-      if (item) {
-        item.price = price;
-        item.costPerServing = price / (item.servings || 1);
-      }
-    });
+    try {
+      const rawObj = JSON.parse(savedPrices);
+      state.customPrices = {};
+      Object.entries(rawObj).forEach(([id, value]) => {
+        if (typeof value === 'object' && value !== null) {
+          state.customPrices[id] = value;
+        } else {
+          // Backward compatibility: Map flat values to 'Aldi'
+          state.customPrices[id] = { 'Aldi': value };
+        }
+      });
+    } catch (e) {
+      console.error("Error loading custom prices: ", e);
+      state.customPrices = {};
+    }
   } else {
     state.customPrices = {};
   }
@@ -1683,6 +1765,9 @@ function loadFromLocalStorage() {
   } else {
     state.scanHistory = [];
   }
+
+  const savedStore = localStorage.getItem('nutribudget-current-store');
+  state.currentStore = savedStore || 'Aldi';
 }
 
 function saveToLocalStorage() {
@@ -1698,6 +1783,7 @@ function saveToLocalStorage() {
   localStorage.setItem('nutribudget-custom-prices', JSON.stringify(state.customPrices));
   localStorage.setItem('nutribudget-templates', JSON.stringify(state.templates));
   localStorage.setItem('nutribudget-scan-history', JSON.stringify(state.scanHistory));
+  localStorage.setItem('nutribudget-current-store', state.currentStore);
 }
 
 // ==========================================
@@ -1905,3 +1991,117 @@ window.addEventListener('appinstalled', () => {
     installBtn.style.display = 'none';
   }
 });
+
+// ==========================================
+// STORE AND SCAN HISTORY LOG UPGRADES
+// ==========================================
+function getItemPriceForStore(item, storeName) {
+  if (!item) return 0;
+  
+  // 1. Check if there is a custom price entered for this store
+  if (state.customPrices[item.id] && state.customPrices[item.id][storeName] !== undefined) {
+    return state.customPrices[item.id][storeName];
+  }
+  
+  // 2. Default standard catalog price fallback
+  const basePrice = item.price;
+  
+  // 3. Fallback mock markup factors for Walmart/Target if no custom price exists
+  if (storeName === 'Walmart') {
+    return basePrice * 1.15; // 15% estimated markup
+  }
+  if (storeName === 'Target') {
+    return basePrice * 1.25; // 25% estimated markup
+  }
+  
+  return basePrice; // Aldi & Custom Store defaults
+}
+
+function updateCatalogPricesForCurrentStore() {
+  state.catalog.forEach(item => {
+    item.price = getItemPriceForStore(item, state.currentStore);
+    item.costPerServing = item.price / (item.servings || 1);
+  });
+}
+
+function renderScanLog() {
+  const container = document.getElementById('scan-log-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  if (state.scanHistory.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 15px 0;">
+        No products scanned yet. Tap "📷 Scan Item" above to scan your first product!
+      </div>
+    `;
+    return;
+  }
+  
+  // Render scanned items in reverse chronological order (newest first)
+  const historyReversed = [...state.scanHistory].reverse();
+  
+  historyReversed.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'basket-item';
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.justifyContent = 'space-between';
+    row.style.padding = '8px 12px';
+    row.style.gap = '10px';
+    row.style.borderRadius = '6px';
+    row.style.background = 'rgba(255,255,255,0.01)';
+    row.style.border = '1px solid var(--border-color)';
+    row.style.fontSize = '13px';
+    
+    // Handle image
+    const imgUrl = item.imgUrl || '';
+    const isCustom = item.id.startsWith('manual_');
+    const iconHtml = imgUrl 
+      ? `<img src="${imgUrl}" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);">`
+      : `<div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 16px; border-radius: 4px; background: rgba(139,92,246,0.1); color: var(--color-primary);">${isCustom ? '📝' : '📦'}</div>`;
+    
+    // Render current store price for comparison
+    const priceAtCurrentStore = getItemPriceForStore(item, state.currentStore);
+
+    row.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+        ${iconHtml}
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+          <span style="font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; color: var(--text-primary);">${item.name}</span>
+          <span style="font-size: 11px; color: var(--text-secondary);">${item.foodGroup || 'Other'} • $${priceAtCurrentStore.toFixed(2)} (${state.currentStore})</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="btn btn-primary btn-xs" onclick="window.addHistoryItemToCart('${item.id}')" style="padding: 3px 8px; font-size: 11px;">+ Add</button>
+        <button class="btn btn-danger btn-xs" onclick="window.deleteHistoryItem('${item.id}')" style="padding: 3px 6px; font-size: 11px; background-color: var(--color-danger); border-color: var(--color-danger); color: white;">✕</button>
+      </div>
+    `;
+    
+    container.appendChild(row);
+  });
+}
+
+window.addHistoryItemToCart = function(id) {
+  state.cart[id] = (state.cart[id] || 0) + 1;
+  saveToLocalStorage();
+  renderStaplesCatalog();
+  renderBasket();
+  updateCartTotals();
+  updateRecipeHelper();
+};
+
+window.deleteHistoryItem = function(id) {
+  if (confirm("Remove this item from your scan history?")) {
+    state.scanHistory = state.scanHistory.filter(item => item.id !== id);
+    state.catalog = state.catalog.filter(item => item.id !== id);
+    delete state.cart[id];
+    
+    saveToLocalStorage();
+    renderStaplesCatalog();
+    renderBasket();
+    updateCartTotals();
+    updateRecipeHelper();
+    renderScanLog();
+  }
+};

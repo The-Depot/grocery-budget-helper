@@ -179,7 +179,13 @@
               </div>
               
               <!-- Search & Filters -->
-              <div class="catalog-search-wrapper" style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <div class="catalog-search-wrapper" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <select id="store-selector" class="form-control" style="width: auto; min-width: 140px; border-color: var(--color-primary); font-weight: 600; cursor: pointer;">
+                  <option value="Aldi">🏪 Aldi (Default)</option>
+                  <option value="Walmart">🏪 Walmart</option>
+                  <option value="Target">🏪 Target</option>
+                  <option value="Custom Store">🏪 Custom Store</option>
+                </select>
                 <input type="text" id="staple-search" class="form-control" placeholder="Search staples... (e.g. Oats, Beans)" style="flex: 1; min-width: 200px;">
                 <div class="swaps-filters" id="staples-filter-chips" style="flex-grow: 2;">
                   <!-- Dynamic Category Filters -->
@@ -203,6 +209,19 @@
               
               <div class="recipes-grid" id="recipes-list-grid">
                 <!-- Dynamically populated in app.js -->
+              </div>
+            </div>
+
+            <!-- Scanned Product History Log -->
+            <div class="card" style="margin-top: 24px;">
+              <div class="card-title-container" style="margin-bottom: 8px;">
+                <h2><span class="icon">📜</span> Scanned Product History Log</h2>
+              </div>
+              <p style="color: var(--text-secondary); font-size: 13.5px; margin-bottom: 12px;">
+                A chronological history of all items you've scanned. View details, update prices, or quickly add them back to your basket.
+              </p>
+              <div id="scan-log-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
+                <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 15px 0;">No products scanned yet. Tap "📷 Scan Item" above to scan your first product!</div>
               </div>
             </div>
           </div>
@@ -354,6 +373,32 @@
                 
                 <div id="nutrition-match-summary" style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 8px;">
                   Add products to match your family's weekly requirements.
+                </div>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 16px 0 12px 0;">
+
+              <!-- Supermarket Comparison Widget -->
+              <div class="store-comparison-widget" style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 13px;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: var(--color-primary); display: flex; align-items: center; gap: 4px;">
+                  <span>🏪 Store Price Comparison</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="display: flex; align-items: center; gap: 4px;">🛒 Aldi:</span>
+                    <span id="store-total-aldi" style="font-weight: 600;">$0.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="display: flex; align-items: center; gap: 4px;">🛒 Walmart:</span>
+                    <span id="store-total-walmart" style="font-weight: 600; opacity: 0.85;">$0.00</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="display: flex; align-items: center; gap: 4px;">🛒 Target:</span>
+                    <span id="store-total-target" style="font-weight: 600; opacity: 0.85;">$0.00</span>
+                  </div>
+                </div>
+                <div id="store-comparison-recommendation" style="font-size: 11px; color: var(--color-success); margin-top: 8px; line-height: 1.4; border-top: 1px dashed var(--border-color); padding-top: 6px;">
+                  Fill your basket to see comparative store savings!
                 </div>
               </div>
             </div>
