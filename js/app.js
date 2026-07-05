@@ -673,11 +673,11 @@ function renderStaplesCatalog() {
     
     let matchesCategory = false;
     if (state.staplesCategoryFilter === 'All') {
-      matchesCategory = !isCustom;
+      matchesCategory = true; // Show BOTH default staples and scanned/custom items in All
     } else if (state.staplesCategoryFilter === 'Scan History') {
-      matchesCategory = isCustom; // Show scanned and manual items
+      matchesCategory = isCustom; // Show ONLY scanned/manual items
     } else {
-      matchesCategory = !isCustom && item.foodGroup === state.staplesCategoryFilter;
+      matchesCategory = item.foodGroup === state.staplesCategoryFilter; // Show matching group, including scanned items
     }
 
     return matchesSearch && matchesCategory;

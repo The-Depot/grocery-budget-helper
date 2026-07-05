@@ -579,6 +579,126 @@ export const STAPLES_CATALOG = [
     nutrients: "Low fat, calcium, fiber, whole grain carbohydrate source.",
     calories: 100,
     foodGroup: "Grains"
+  },
+  {
+    id: "staple_brand_milk",
+    name: "Great Value Whole Milk (Gallon)",
+    category: "Dairy & Milk",
+    price: 3.29,
+    unit: "1 gallon jug",
+    servings: 16,
+    costPerServing: 0.21,
+    nutrients: "Calcium, Vitamin D, Protein, Vitamin A.",
+    calories: 150,
+    foodGroup: "Dairy"
+  },
+  {
+    id: "staple_brand_eggs",
+    name: "Good & Gather Large Brown Eggs (12 ct)",
+    category: "Dairy & Eggs",
+    price: 2.19,
+    unit: "12 eggs carton",
+    servings: 12,
+    costPerServing: 0.18,
+    nutrients: "Choline, high-quality protein, Vitamin D, riboflavin.",
+    calories: 70,
+    foodGroup: "Dairy"
+  },
+  {
+    id: "staple_brand_yogurt",
+    name: "Friendly Farms Greek Yogurt (Plain, 32 oz)",
+    category: "Dairy & Eggs",
+    price: 3.49,
+    unit: "32 oz tub",
+    servings: 5,
+    costPerServing: 0.70,
+    nutrients: "Active probiotic cultures, double protein density, calcium.",
+    calories: 130,
+    foodGroup: "Dairy"
+  },
+  {
+    id: "staple_brand_canned_black_beans",
+    name: "Great Value Black Beans (15.25 oz)",
+    category: "Proteins & Legumes",
+    price: 0.82,
+    unit: "15.25 oz can",
+    servings: 3.5,
+    costPerServing: 0.23,
+    nutrients: "Folate, dietary fiber, magnesium, plant protein.",
+    calories: 110,
+    foodGroup: "Proteins"
+  },
+  {
+    id: "staple_brand_spinach",
+    name: "Marketside Organic Baby Spinach (5 oz)",
+    category: "Fresh Produce",
+    price: 2.48,
+    unit: "5 oz clamshell",
+    servings: 5,
+    costPerServing: 0.50,
+    nutrients: "Vitamin K, Vitamin A, folate, iron, lutein.",
+    calories: 15,
+    foodGroup: "Vegetables"
+  },
+  {
+    id: "staple_brand_ramen",
+    name: "Great Value Ramen Noodles (Chicken, 12 ct)",
+    category: "Quick Meals",
+    price: 3.12,
+    unit: "12-pack box",
+    servings: 12,
+    costPerServing: 0.26,
+    nutrients: "Sustained sodium, low protein. Treat as quick fuel.",
+    calories: 190,
+    foodGroup: "Grains"
+  },
+  {
+    id: "staple_brand_frozen_blueberries",
+    name: "Great Value Frozen Blueberries (40 oz)",
+    category: "Fresh Produce",
+    price: 6.98,
+    unit: "40 oz bag",
+    servings: 10,
+    costPerServing: 0.70,
+    nutrients: "High anthocyanins (antioxidants), Vitamin C, fiber.",
+    calories: 70,
+    foodGroup: "Fruits"
+  },
+  {
+    id: "staple_brand_tuna",
+    name: "StarKist Chunk Light Tuna in Water (5 oz)",
+    category: "Proteins & Legumes",
+    price: 1.14,
+    unit: "5 oz can",
+    servings: 2,
+    costPerServing: 0.57,
+    nutrients: "High protein, omega-3 fats, selenium, low calorie.",
+    calories: 90,
+    foodGroup: "Proteins"
+  },
+  {
+    id: "staple_brand_quinoa",
+    name: "Simply Nature Organic Quinoa (16 oz)",
+    category: "Grains & Grains",
+    price: 3.19,
+    unit: "16 oz bag",
+    servings: 10,
+    costPerServing: 0.32,
+    nutrients: "Complete plant protein, manganese, phosphorus, fiber.",
+    calories: 170,
+    foodGroup: "Grains"
+  },
+  {
+    id: "staple_brand_olive_oil",
+    name: "Simply Nature Organic Extra Virgin Olive Oil (16.9 oz)",
+    category: "Pantry",
+    price: 6.49,
+    unit: "16.9 oz bottle",
+    servings: 33,
+    costPerServing: 0.20,
+    nutrients: "Monounsaturated fats, polyphenols, heart-healthy.",
+    calories: 120,
+    foodGroup: "Fats"
   }
 ];
 
