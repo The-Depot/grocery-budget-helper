@@ -683,6 +683,11 @@ function renderStaplesCatalog() {
     const card = document.createElement('div');
     card.className = 'card staple-card hoverable';
     
+    // Calculate comparative prices
+    const aldiP = getItemPriceForStore(item, 'Aldi');
+    const walmartP = getItemPriceForStore(item, 'Walmart');
+    const targetP = getItemPriceForStore(item, 'Target');
+
     card.innerHTML = `
       <div class="staple-info">
         <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">${item.category}</span>
@@ -691,22 +696,30 @@ function renderStaplesCatalog() {
         <p style="font-size: 13.5px; line-height: 1.3; color: var(--text-secondary);">${item.nutrients}</p>
       </div>
       
-      <div class="staple-price-row">
-        <div class="staple-price" onclick="window.editItemPrice('${item.id}')" title="Click to edit local price" style="cursor: pointer; border-bottom: 1px dotted var(--border-color);">
-          $${item.price.toFixed(2)} <span style="font-size: 11px; opacity: 0.6;">✏️</span>
-          <small>$${item.costPerServing.toFixed(2)} / serving</small>
+      <div class="staple-price-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="staple-price" onclick="window.editItemPrice('${item.id}')" title="Click to edit local price" style="cursor: pointer; border-bottom: 1px dotted var(--border-color);">
+            $${item.price.toFixed(2)} <span style="font-size: 11px; opacity: 0.6;">✏️</span>
+            <small>$${item.costPerServing.toFixed(2)} / serving</small>
+          </div>
+          
+          <div>
+            ${qtyInCart > 0 ? `
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button class="qty-btn" onclick="adjustCartQty('${item.id}', -1)">-</button>
+                <span style="font-weight: 700; width: 14px; text-align: center;">${qtyInCart}</span>
+                <button class="qty-btn" onclick="adjustCartQty('${item.id}', 1)">+</button>
+              </div>
+            ` : `
+              <button class="btn btn-primary btn-xs" onclick="adjustCartQty('${item.id}', 1)">+ Add</button>
+            `}
+          </div>
         </div>
-        
-        <div>
-          ${qtyInCart > 0 ? `
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <button class="qty-btn" onclick="adjustCartQty('${item.id}', -1)">-</button>
-              <span style="font-weight: 700; width: 14px; text-align: center;">${qtyInCart}</span>
-              <button class="qty-btn" onclick="adjustCartQty('${item.id}', 1)">+</button>
-            </div>
-          ` : `
-            <button class="btn btn-primary btn-xs" onclick="adjustCartQty('${item.id}', 1)">+ Add</button>
-          `}
+
+        <div style="font-size: 11.5px; display: flex; justify-content: space-between; color: var(--text-secondary); border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 6px;">
+          <span>Aldi: <strong>$${aldiP.toFixed(2)}</strong></span>
+          <span>WMT: <strong>$${walmartP.toFixed(2)}</strong></span>
+          <span>TGT: <strong>$${targetP.toFixed(2)}</strong></span>
         </div>
       </div>
     `;
@@ -817,6 +830,11 @@ function renderBasket() {
       row.style.alignItems = 'stretch';
       row.style.gap = '8px';
       
+      // Calculate comparative prices
+      const aldiP = getItemPriceForStore(item, 'Aldi');
+      const walmartP = getItemPriceForStore(item, 'Walmart');
+      const targetP = getItemPriceForStore(item, 'Target');
+      
       row.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -825,6 +843,7 @@ function renderBasket() {
               <span class="basket-item-name" style="font-weight: 500;">${item.name}</span>
               <span class="basket-item-price" onclick="window.editItemPrice('${item.id}')" style="font-size: 12px; color: var(--text-secondary); cursor: pointer; text-decoration: underline dotted;" title="Click to edit local price">
                 $${item.price.toFixed(2)} ea ✏️
+                <span style="opacity: 0.6; font-size: 11px; margin-left: 4px;">(Aldi: $${aldiP.toFixed(2)} | WMT: $${walmartP.toFixed(2)} | TGT: $${targetP.toFixed(2)})</span>
               </span>
             </div>
           </div>
