@@ -1499,29 +1499,45 @@ function displayScannedProduct(barcode, product) {
   // Evaluate nutrition warnings & swaps
   evaluateNutritionAndSwaps(currentScannedProduct);
   
-  // Pre-fill price from customPrices if previously entered, otherwise guess average by food group
+  // Pre-fill prices from customPrices or scale default estimates by COL
   const existingId = `scanned_${barcode}`;
-  const savedPrice = state.customPrices[existingId];
-  if (savedPrice !== undefined) {
-    document.getElementById('scanned-product-price').value = savedPrice.toFixed(2);
+  const averagesByGroup = {
+    Proteins: 5.99,
+    Vegetables: 1.99,
+    Fruits: 2.49,
+    Dairy: 3.49,
+    Grains: 2.20,
+    Fats: 4.50,
+    Other: 2.99
+  };
+  const baseGuess = (averagesByGroup[guessedGroup] || 2.99) / state.colMultiplier;
+
+  let aldiPrice = baseGuess * state.colMultiplier;
+  let walmartPrice = aldiPrice * 1.15;
+  let targetPrice = aldiPrice * 1.25;
+
+  const saved = state.customPrices[existingId];
+  if (saved) {
+    if (saved.Aldi !== undefined) aldiPrice = saved.Aldi;
+    if (saved.Walmart !== undefined) walmartPrice = saved.Walmart;
+    if (saved.Target !== undefined) targetPrice = saved.Target;
   } else {
     const existing = state.catalog.find(s => s.id === existingId);
     if (existing) {
-      document.getElementById('scanned-product-price').value = existing.price.toFixed(2);
-    } else {
-      const averagesByGroup = {
-        Proteins: 5.99,
-        Vegetables: 1.99,
-        Fruits: 2.49,
-        Dairy: 3.49,
-        Grains: 2.20,
-        Fats: 4.50,
-        Other: 2.99
-      };
-      const guessedPrice = averagesByGroup[guessedGroup] || 2.99;
-      document.getElementById('scanned-product-price').value = guessedPrice.toFixed(2);
+      aldiPrice = getItemPriceForStore(existing, 'Aldi');
+      walmartPrice = getItemPriceForStore(existing, 'Walmart');
+      targetPrice = getItemPriceForStore(existing, 'Target');
     }
   }
+
+  document.getElementById('scan-price-aldi').value = aldiPrice.toFixed(2);
+  document.getElementById('scan-price-walmart').value = walmartPrice.toFixed(2);
+  document.getElementById('scan-price-target').value = targetPrice.toFixed(2);
+
+  // Set web lookup links
+  document.getElementById('link-lookup-google').href = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(barcode + " " + currentScannedProduct.name)}`;
+  document.getElementById('link-lookup-walmart').href = `https://www.walmart.com/search?q=${encodeURIComponent(barcode)}`;
+  document.getElementById('link-lookup-target').href = `https://www.target.com/s?searchTerm=${encodeURIComponent(barcode)}`;
   
   // Show data box
   document.getElementById('scanned-product-preview').style.display = 'block';
@@ -1623,11 +1639,24 @@ function evaluateNutritionAndSwaps(product) {
 function addScannedProductToCart() {
   if (!currentScannedProduct) return;
   
-  const price = parseFloat(document.getElementById('scanned-product-price').value) || 2.99;
+  const aldiVal = parseFloat(document.getElementById('scan-price-aldi').value) || 2.99;
+  const walmartVal = parseFloat(document.getElementById('scan-price-walmart').value) || (aldiVal * 1.15);
+  const targetVal = parseFloat(document.getElementById('scan-price-target').value) || (aldiVal * 1.25);
   const group = document.getElementById('scanned-product-group').value;
   
   const productId = `scanned_${currentScannedProduct.barcode}`;
   
+  // Save to customPrices dictionary
+  if (!state.customPrices[productId]) {
+    state.customPrices[productId] = {};
+  }
+  state.customPrices[productId]['Aldi'] = aldiVal;
+  state.customPrices[productId]['Walmart'] = walmartVal;
+  state.customPrices[productId]['Target'] = targetVal;
+  state.customPrices[productId]['Custom Store'] = aldiVal;
+
+  const activePrice = state.currentStore === 'Walmart' ? walmartVal : state.currentStore === 'Target' ? targetVal : aldiVal;
+
   // Register in runtime state catalog if not present
   const existing = state.catalog.find(s => s.id === productId);
   
@@ -1643,11 +1672,11 @@ function addScannedProductToCart() {
     id: productId,
     name: `${currentScannedProduct.brand ? currentScannedProduct.brand + ' ' : ''}${currentScannedProduct.name}`,
     category: "Scanned Item",
-    price: price,
-    originalPrice: price,
+    price: activePrice,
+    originalPrice: aldiVal / state.colMultiplier,
     unit: "Scanned Pack",
     servings: 1,
-    costPerServing: price,
+    costPerServing: activePrice,
     nutrients: `Nutri-Score: ${currentScannedProduct.nutriscore.toUpperCase()}.`,
     calories: currentScannedProduct.nutriments['energy-kcal_100g'] || currentScannedProduct.nutriments['energy-kcal'] || 100,
     protein: currentScannedProduct.nutriments.proteins_100g || currentScannedProduct.nutriments.proteins || 0,
@@ -1661,9 +1690,9 @@ function addScannedProductToCart() {
     state.catalog.push(scannedItem);
   } else {
     // Update existing catalog reference with new price/category info
-    existing.price = price;
-    existing.originalPrice = price;
-    existing.costPerServing = price;
+    existing.price = activePrice;
+    existing.originalPrice = aldiVal / state.colMultiplier;
+    existing.costPerServing = activePrice;
     existing.foodGroup = group;
     existing.ingredientsText = currentScannedProduct.ingredientsText;
   }

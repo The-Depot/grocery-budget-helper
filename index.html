@@ -473,15 +473,8 @@
           
           <!-- Pricing & Classification Inputs -->
           <div class="grid-container" style="gap: 12px; margin-bottom: 16px;">
-            <div class="form-group" style="grid-column: span 6; margin-bottom: 0;">
-              <label for="scanned-product-price">Shelf Price ($)</label>
-              <div class="input-wrapper">
-                <span class="input-prefix">$</span>
-                <input type="number" id="scanned-product-price" class="form-control" step="0.01" min="0" value="2.99">
-              </div>
-            </div>
-            <div class="form-group" style="grid-column: span 6; margin-bottom: 0;">
-              <label for="scanned-product-group">Food Group</label>
+            <div class="form-group" style="grid-column: span 12; margin-bottom: 0;">
+              <label for="scanned-product-group">Food Group Category</label>
               <select id="scanned-product-group" class="form-control">
                 <option value="Grains">Grains</option>
                 <option value="Proteins">Proteins</option>
@@ -491,6 +484,44 @@
                 <option value="Dairy">Dairy</option>
                 <option value="Other">Other / Treats</option>
               </select>
+            </div>
+          </div>
+
+          <!-- Store Pricing Options -->
+          <div style="margin-bottom: 16px;">
+            <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">💵 Store Pricing Options</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px;">
+                <span style="font-size: 13px; font-weight: 600;">🏪 Aldi Price:</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 12px; color: var(--text-muted);">$</span>
+                  <input type="number" id="scan-price-aldi" class="form-control" step="0.01" min="0" style="max-width: 90px; padding: 4px 8px; font-size: 13px; text-align: right;" value="2.99">
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px;">
+                <span style="font-size: 13px; font-weight: 600;">🏪 Walmart Price:</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 12px; color: var(--text-muted);">$</span>
+                  <input type="number" id="scan-price-walmart" class="form-control" step="0.01" min="0" style="max-width: 90px; padding: 4px 8px; font-size: 13px; text-align: right;" value="3.44">
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px;">
+                <span style="font-size: 13px; font-weight: 600;">🏪 Target Price:</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 12px; color: var(--text-muted);">$</span>
+                  <input type="number" id="scan-price-target" class="form-control" step="0.01" min="0" style="max-width: 90px; padding: 4px 8px; font-size: 13px; text-align: right;" value="3.74">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Web Price Lookups -->
+          <div style="margin-bottom: 16px;">
+            <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">🌐 Live Store Price Lookup Links</h4>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <a id="link-lookup-google" href="" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none; padding: 5px 8px; font-size: 11px; display: flex; align-items: center; gap: 4px;">🔍 Google Shopping</a>
+              <a id="link-lookup-walmart" href="" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none; padding: 5px 8px; font-size: 11px; display: flex; align-items: center; gap: 4px;">🛒 Walmart Search</a>
+              <a id="link-lookup-target" href="" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none; padding: 5px 8px; font-size: 11px; display: flex; align-items: center; gap: 4px;">🎯 Target Search</a>
             </div>
           </div>
           
