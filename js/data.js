@@ -18,6 +18,21 @@ export const USDA_FOOD_PLANS = {
   senior_female_71: [238.40, 298.20, 362.50, 452.10]
 };
 
+// USDA Nutritional Targets - Daily values for Calories (kcal), Protein (g), Fiber (g), and Calcium (mg)
+export const USDA_NUTRITION_TARGETS = {
+  toddler_1_3: { calories: 1000, protein: 13, fiber: 14, calcium: 700 },
+  child_4_8: { calories: 1400, protein: 19, fiber: 18, calcium: 1000 },
+  child_9_11: { calories: 1800, protein: 34, fiber: 22, calcium: 1300 },
+  teen_male_12_18: { calories: 2500, protein: 52, fiber: 31, calcium: 1300 },
+  teen_female_12_18: { calories: 2000, protein: 46, fiber: 26, calcium: 1300 },
+  adult_male_19_50: { calories: 2400, protein: 56, fiber: 38, calcium: 1000 },
+  adult_female_19_50: { calories: 2000, protein: 46, fiber: 25, calcium: 1000 },
+  adult_male_51_70: { calories: 2200, protein: 56, fiber: 30, calcium: 1000 },
+  adult_female_51_70: { calories: 1800, protein: 46, fiber: 21, calcium: 1200 },
+  senior_male_71: { calories: 2000, protein: 56, fiber: 30, calcium: 1200 },
+  senior_female_71: { calories: 1600, protein: 46, fiber: 21, calcium: 1200 }
+};
+
 // Household size multiplier factors
 // 1 person: +20%, 2 people: +10%, 3 people: +5%, 4 people: 0%, 5-6 people: -5%, 7+ people: -10%
 export const HOUSEHOLD_ADJUSTMENTS = [

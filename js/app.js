@@ -4,7 +4,8 @@ import {
   HOUSEHOLD_ADJUSTMENTS, 
   HEALTHY_SWAPS, 
   STAPLES_CATALOG, 
-  BUDGET_RECIPES 
+  BUDGET_RECIPES,
+  USDA_NUTRITION_TARGETS
 } from './data.js';
 
 // Application State
@@ -24,7 +25,48 @@ const state = {
   taxActive: false,
   checkedItems: new Set(),
   customPrices: {},
-  templates: {}
+  templates: {},
+  scanHistory: []
+};
+
+const STAPLE_NUTRIENTS = {
+  staple_oats: { protein: 5, fiber: 4, calcium: 20 },
+  staple_rice: { protein: 3, fiber: 2, calcium: 10 },
+  staple_lentils: { protein: 9, fiber: 8, calcium: 20 },
+  staple_beans: { protein: 7, fiber: 6, calcium: 40 },
+  staple_tuna: { protein: 20, fiber: 0, calcium: 10 },
+  staple_eggs: { protein: 12, fiber: 0, calcium: 50 },
+  staple_peanut_butter: { protein: 7, fiber: 2, calcium: 15 },
+  staple_bananas: { protein: 1, fiber: 3, calcium: 5 },
+  staple_sweet_potatoes: { protein: 2, fiber: 4, calcium: 30 },
+  staple_carrots: { protein: 1, fiber: 3, calcium: 30 },
+  staple_spinach: { protein: 3, fiber: 2, calcium: 80 },
+  staple_frozen_veggies: { protein: 2, fiber: 3, calcium: 20 },
+  staple_milk: { protein: 8, fiber: 0, calcium: 300 },
+  staple_apples: { protein: 0, fiber: 4, calcium: 10 },
+  staple_greek_yogurt: { protein: 16, fiber: 0, calcium: 150 },
+  staple_cabbage: { protein: 1, fiber: 2, calcium: 40 },
+  staple_chicken_thighs: { protein: 22, fiber: 0, calcium: 15 },
+  staple_canned_tomatoes: { protein: 1, fiber: 1, calcium: 10 },
+  staple_olive_oil: { protein: 0, fiber: 0, calcium: 0 },
+  staple_whole_wheat_bread: { protein: 4, fiber: 3, calcium: 30 },
+  staple_ground_beef: { protein: 22, fiber: 0, calcium: 15 },
+  staple_beef_stew: { protein: 26, fiber: 0, calcium: 15 },
+  staple_pork_chops: { protein: 24, fiber: 0, calcium: 10 },
+  staple_canned_sardines: { protein: 22, fiber: 0, calcium: 300 },
+  staple_tofu: { protein: 8, fiber: 2, calcium: 200 },
+  staple_canned_chickpeas: { protein: 7, fiber: 6, calcium: 40 },
+  staple_oranges: { protein: 1, fiber: 3, calcium: 40 },
+  staple_frozen_berries: { protein: 1, fiber: 4, calcium: 15 },
+  staple_lemons_limes: { protein: 0, fiber: 2, calcium: 20 },
+  staple_fresh_broccoli: { protein: 3, fiber: 3, calcium: 40 },
+  staple_onions: { protein: 1, fiber: 2, calcium: 20 },
+  staple_garlic: { protein: 0, fiber: 0, calcium: 5 },
+  staple_bell_peppers: { protein: 1, fiber: 2, calcium: 10 },
+  staple_quinoa: { protein: 6, fiber: 5, calcium: 30 },
+  staple_barley: { protein: 3, fiber: 6, calcium: 20 },
+  staple_whole_grain_pasta: { protein: 7, fiber: 3, calcium: 10 },
+  staple_corn_tortillas: { protein: 2, fiber: 2, calcium: 40 }
 };
 
 // Global Chart Reference
@@ -171,6 +213,23 @@ function setupEventListeners() {
       const input = document.getElementById('template-name-input');
       if (input) {
         saveCurrentAsTemplate(input.value);
+      }
+    });
+  }
+
+  // PWA Install Button Click Handler
+  const installBtn = document.getElementById('pwa-install-btn');
+  if (installBtn) {
+    installBtn.addEventListener('click', () => {
+      if (window.deferredPrompt) {
+        window.deferredPrompt.prompt();
+        window.deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User installed the PWA');
+          }
+          window.deferredPrompt = null;
+          installBtn.style.display = 'none';
+        });
       }
     });
   }
@@ -558,7 +617,7 @@ function setupStaplesFilters() {
   });
 
   // Setup Chips
-  const categories = ['All', 'Proteins', 'Grains', 'Vegetables', 'Fruits', 'Dairy', 'Fats', 'Pantry'];
+  const categories = ['All', 'Proteins', 'Grains', 'Vegetables', 'Fruits', 'Dairy', 'Fats', 'Pantry', 'Scan History'];
   const container = document.getElementById('staples-filter-chips');
   container.innerHTML = '';
 
@@ -585,17 +644,16 @@ function renderStaplesCatalog() {
   grid.innerHTML = '';
 
   const filtered = state.catalog.filter(item => {
-    // Exclude scanned/manual custom items from the general staples catalog list
-    if (item.id.startsWith('scanned_') || item.id.startsWith('manual_')) {
-      return false;
-    }
+    const isCustom = item.id.startsWith('scanned_') || item.id.startsWith('manual_');
     const matchesSearch = item.name.toLowerCase().includes(state.staplesSearchQuery);
-    let matchesCategory = false;
     
+    let matchesCategory = false;
     if (state.staplesCategoryFilter === 'All') {
-      matchesCategory = true;
+      matchesCategory = !isCustom;
+    } else if (state.staplesCategoryFilter === 'Scan History') {
+      matchesCategory = isCustom; // Show scanned and manual items
     } else {
-      matchesCategory = item.foodGroup === state.staplesCategoryFilter;
+      matchesCategory = !isCustom && item.foodGroup === state.staplesCategoryFilter;
     }
 
     return matchesSearch && matchesCategory;
@@ -908,6 +966,108 @@ function updateCartTotals() {
 
   // Update Nutri-Meter Diversity Bar
   renderNutriMeter(groupCounts);
+
+  // ==========================================
+  // Update Nutrition Matcher
+  // ==========================================
+  const weeklyTargets = getHouseholdWeeklyNutritionTargets();
+  
+  let cartCalories = 0;
+  let cartProtein = 0;
+  let cartFiber = 0;
+  let cartCalcium = 0;
+
+  Object.entries(state.cart).forEach(([id, qty]) => {
+    const item = state.catalog.find(s => s.id === id);
+    if (item) {
+      const servings = item.servings || 1;
+      const totalServings = servings * qty;
+      
+      cartCalories += (item.calories || 0) * totalServings;
+      
+      let itemProtein = item.protein;
+      let itemFiber = item.fiber;
+      let itemCalcium = item.calcium;
+      
+      if (STAPLE_NUTRIENTS[id]) {
+        itemProtein = STAPLE_NUTRIENTS[id].protein;
+        itemFiber = STAPLE_NUTRIENTS[id].fiber;
+        itemCalcium = STAPLE_NUTRIENTS[id].calcium;
+      }
+      
+      cartProtein += (itemProtein || 0) * totalServings;
+      cartFiber += (itemFiber || 0) * totalServings;
+      cartCalcium += (itemCalcium || 0) * totalServings;
+    }
+  });
+
+  // Calculate percentages
+  const calPct = weeklyTargets.calories > 0 ? Math.round((cartCalories / weeklyTargets.calories) * 100) : 0;
+  const proPct = weeklyTargets.protein > 0 ? Math.round((cartProtein / weeklyTargets.protein) * 100) : 0;
+  const fibPct = weeklyTargets.fiber > 0 ? Math.round((cartFiber / weeklyTargets.fiber) * 100) : 0;
+  const caPct = weeklyTargets.calcium > 0 ? Math.round((cartCalcium / weeklyTargets.calcium) * 100) : 0;
+
+  // Update percentages in UI
+  const calPercentEl = document.getElementById('nutrition-calories-percent');
+  const proPercentEl = document.getElementById('nutrition-protein-percent');
+  const fibPercentEl = document.getElementById('nutrition-fiber-percent');
+  const caPercentEl = document.getElementById('nutrition-calcium-percent');
+
+  if (calPercentEl) calPercentEl.innerText = `${calPct}%`;
+  if (proPercentEl) proPercentEl.innerText = `${proPct}%`;
+  if (fibPercentEl) fibPercentEl.innerText = `${fibPct}%`;
+  if (caPercentEl) caPercentEl.innerText = `${caPct}%`;
+
+  // Update progress bars
+  const calBarEl = document.getElementById('nutrition-calories-bar');
+  const proBarEl = document.getElementById('nutrition-protein-bar');
+  const fibBarEl = document.getElementById('nutrition-fiber-bar');
+  const caBarEl = document.getElementById('nutrition-calcium-bar');
+
+  if (calBarEl) calBarEl.style.width = `${Math.min(calPct, 100)}%`;
+  if (proBarEl) proBarEl.style.width = `${Math.min(proPct, 100)}%`;
+  if (fibBarEl) fibBarEl.style.width = `${Math.min(fibPct, 100)}%`;
+  if (caBarEl) caBarEl.style.width = `${Math.min(caPct, 100)}%`;
+
+  // Update summary text
+  const summaryEl = document.getElementById('nutrition-match-summary');
+  if (summaryEl) {
+    if (cartCalories === 0) {
+      summaryEl.innerHTML = `🛒 Add items to see what percentage of your family's weekly nutrient targets are met by this basket.`;
+    } else {
+      summaryEl.innerHTML = `🌱 This basket provides <strong>${cartCalories.toLocaleString()} kcal</strong>, <strong>${cartProtein.toFixed(0)}g</strong> Protein, <strong>${cartFiber.toFixed(0)}g</strong> Fiber, and <strong>${cartCalcium.toLocaleString()}mg</strong> Calcium.`;
+    }
+  }
+}
+
+function getHouseholdWeeklyNutritionTargets() {
+  const weekly = {
+    calories: 0,
+    protein: 0,
+    fiber: 0,
+    calcium: 0
+  };
+  
+  if (state.household.length === 0) {
+    return {
+      calories: 4400 * 7,
+      protein: 102 * 7,
+      fiber: 63 * 7,
+      calcium: 2000 * 7
+    };
+  }
+  
+  state.household.forEach(member => {
+    const targets = USDA_NUTRITION_TARGETS[member.planKey];
+    if (targets) {
+      weekly.calories += targets.calories * 7;
+      weekly.protein += targets.protein * 7;
+      weekly.fiber += targets.fiber * 7;
+      weekly.calcium += targets.calcium * 7;
+    }
+  });
+  
+  return weekly;
 }
 
 function renderNutriMeter(groups) {
@@ -1352,25 +1512,51 @@ function addScannedProductToCart() {
   
   // Register in runtime state catalog if not present
   const existing = state.catalog.find(s => s.id === productId);
+  
+  // Normalize calcium to mg (OFF reports calcium in grams per 100g sometimes, so we default to standard if invalid)
+  let rawCalcium = currentScannedProduct.nutriments.calcium_100g || currentScannedProduct.nutriments.calcium || 0;
+  if (rawCalcium > 0 && rawCalcium < 1) {
+    rawCalcium = rawCalcium * 1000; // convert g to mg
+  } else if (rawCalcium > 0 && rawCalcium >= 1) {
+    rawCalcium = rawCalcium; // already in mg
+  }
+
+  const scannedItem = {
+    id: productId,
+    name: `${currentScannedProduct.brand ? currentScannedProduct.brand + ' ' : ''}${currentScannedProduct.name}`,
+    category: "Scanned Item",
+    price: price,
+    unit: "Scanned Pack",
+    servings: 1,
+    costPerServing: price,
+    nutrients: `Nutri-Score: ${currentScannedProduct.nutriscore.toUpperCase()}.`,
+    calories: currentScannedProduct.nutriments['energy-kcal_100g'] || currentScannedProduct.nutriments['energy-kcal'] || 100,
+    protein: currentScannedProduct.nutriments.proteins_100g || currentScannedProduct.nutriments.proteins || 0,
+    fiber: currentScannedProduct.nutriments.fiber_100g || currentScannedProduct.nutriments.fiber || 0,
+    calcium: rawCalcium,
+    foodGroup: group
+  };
+
   if (!existing) {
-    state.catalog.push({
-      id: productId,
-      name: `${currentScannedProduct.brand ? currentScannedProduct.brand + ' ' : ''}${currentScannedProduct.name}`,
-      category: "Scanned Database Item",
-      price: price,
-      unit: "Scanned Pack",
-      servings: 1,
-      costPerServing: price,
-      nutrients: `Nutri-Score: ${currentScannedProduct.nutriscore.toUpperCase()}. Evaluated from database.`,
-      calories: currentScannedProduct.nutriments['energy-kcal_100g'] || 100,
-      foodGroup: group
-    });
+    state.catalog.push(scannedItem);
   } else {
-    // Update price if it was changed
+    // Update existing catalog reference with new price/category info
     existing.price = price;
     existing.costPerServing = price;
+    existing.foodGroup = group;
   }
   
+  // Register in scanHistory
+  if (!state.scanHistory.some(h => h.id === productId)) {
+    state.scanHistory.push(scannedItem);
+  } else {
+    const hist = state.scanHistory.find(h => h.id === productId);
+    if (hist) {
+      hist.price = price;
+      hist.foodGroup = group;
+    }
+  }
+
   // Add to cart quantity
   state.cart[productId] = (state.cart[productId] || 0) + 1;
   
@@ -1392,7 +1578,7 @@ function addManualProductToCart() {
   
   const productId = `manual_${Date.now()}`;
   
-  state.catalog.push({
+  const manualItem = {
     id: productId,
     name: name,
     category: "Manual Custom Item",
@@ -1401,9 +1587,17 @@ function addManualProductToCart() {
     servings: 1,
     costPerServing: price,
     nutrients: "Manually entered grocery item.",
-    calories: 100,
+    calories: 120,
+    protein: group === 'Proteins' ? 15 : group === 'Dairy' ? 8 : 1,
+    fiber: group === 'Vegetables' || group === 'Fruits' ? 3 : group === 'Grains' ? 2 : 0,
+    calcium: group === 'Dairy' ? 250 : group === 'Vegetables' ? 40 : 0,
     foodGroup: group
-  });
+  };
+  
+  state.catalog.push(manualItem);
+  
+  // Register in scanHistory
+  state.scanHistory.push(manualItem);
   
   state.cart[productId] = (state.cart[productId] || 0) + 1;
   
@@ -1477,6 +1671,18 @@ function loadFromLocalStorage() {
   } else {
     state.templates = {};
   }
+
+  const savedHistory = localStorage.getItem('nutribudget-scan-history');
+  if (savedHistory) {
+    state.scanHistory = JSON.parse(savedHistory);
+    state.scanHistory.forEach(h => {
+      if (!state.catalog.some(item => item.id === h.id)) {
+        state.catalog.push(h);
+      }
+    });
+  } else {
+    state.scanHistory = [];
+  }
 }
 
 function saveToLocalStorage() {
@@ -1491,6 +1697,7 @@ function saveToLocalStorage() {
   localStorage.setItem('nutribudget-checked-items', JSON.stringify(Array.from(state.checkedItems)));
   localStorage.setItem('nutribudget-custom-prices', JSON.stringify(state.customPrices));
   localStorage.setItem('nutribudget-templates', JSON.stringify(state.templates));
+  localStorage.setItem('nutribudget-scan-history', JSON.stringify(state.scanHistory));
 }
 
 // ==========================================
@@ -1672,3 +1879,29 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('[Service Worker] Registration failed:', err));
   });
 }
+
+// ==========================================
+// PWA NATIVE INSTALL POPUP HANDLER
+// ==========================================
+window.deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent Chrome 67 and earlier from automatically showing the prompt
+  e.preventDefault();
+  // Stash the event so it can be triggered later.
+  window.deferredPrompt = e;
+  // Update UI to notify the user they can install the PWA
+  const installBtn = document.getElementById('pwa-install-btn');
+  if (installBtn) {
+    installBtn.style.display = 'flex';
+  }
+});
+
+// Hide the install button once installed
+window.addEventListener('appinstalled', () => {
+  console.log('NutriBudget PWA was installed successfully');
+  window.deferredPrompt = null;
+  const installBtn = document.getElementById('pwa-install-btn');
+  if (installBtn) {
+    installBtn.style.display = 'none';
+  }
+});
