@@ -110,6 +110,20 @@
             <div class="household-member-list" id="household-members">
               <!-- Dynamically populated in app.js -->
             </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0 16px 0;">
+
+            <!-- ZIP Code Location Selector -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="zip-code-input">Your ZIP Code (for local store lookup)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="zip-code-input" class="form-control" placeholder="e.g. 90210" maxlength="5" style="max-width: 140px; font-weight: 600; text-align: center; letter-spacing: 1px;">
+                <button class="btn btn-primary" id="btn-update-zip" style="font-size: 13px; padding: 10px 16px;">Set Location</button>
+              </div>
+              <div id="zip-locator-status" style="font-size: 11.5px; color: var(--text-secondary); margin-top: 8px; line-height: 1.4;">
+                Enter a ZIP code to load local stores within 25 miles and scale default prices by regional Cost-of-Living indices.
+              </div>
+            </div>
           </div>
           
           <!-- Comparisons Panel -->

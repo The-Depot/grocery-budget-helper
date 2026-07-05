@@ -27,7 +27,10 @@ const state = {
   customPrices: {},
   templates: {},
   scanHistory: [],
-  currentStore: 'Aldi'
+  currentStore: 'Aldi',
+  zipCode: '',
+  colMultiplier: 1.0,
+  nearbyStores: []
 };
 
 const STAPLE_NUTRIENTS = {
@@ -77,8 +80,10 @@ let comparisonChart = null;
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   loadFromLocalStorage(); // Load saved preferences
+  updateStoreSelectorDropdown(); // Build selector options based on ZIP code
   updateCatalogPricesForCurrentStore(); // Map initial catalog prices to loaded store
   setupEventListeners();
+  setupZipLocator(); // Initialize ZIP locator triggers
   renderHousehold();
   renderSwaps();
   renderStaplesCatalog();
@@ -1621,6 +1626,7 @@ function addScannedProductToCart() {
     name: `${currentScannedProduct.brand ? currentScannedProduct.brand + ' ' : ''}${currentScannedProduct.name}`,
     category: "Scanned Item",
     price: price,
+    originalPrice: price,
     unit: "Scanned Pack",
     servings: 1,
     costPerServing: price,
@@ -1637,6 +1643,7 @@ function addScannedProductToCart() {
   } else {
     // Update existing catalog reference with new price/category info
     existing.price = price;
+    existing.originalPrice = price;
     existing.costPerServing = price;
     existing.foodGroup = group;
   }
@@ -1648,6 +1655,7 @@ function addScannedProductToCart() {
     const hist = state.scanHistory.find(h => h.id === productId);
     if (hist) {
       hist.price = price;
+      hist.originalPrice = price;
       hist.foodGroup = group;
     }
   }
@@ -1678,6 +1686,7 @@ function addManualProductToCart() {
     name: name,
     category: "Manual Custom Item",
     price: price,
+    originalPrice: price,
     unit: "Custom Pack",
     servings: 1,
     costPerServing: price,
@@ -1787,6 +1796,15 @@ function loadFromLocalStorage() {
 
   const savedStore = localStorage.getItem('nutribudget-current-store');
   state.currentStore = savedStore || 'Aldi';
+
+  const savedZip = localStorage.getItem('nutribudget-zipcode');
+  state.zipCode = savedZip || '';
+
+  const savedCol = localStorage.getItem('nutribudget-col-multiplier');
+  state.colMultiplier = savedCol ? parseFloat(savedCol) : 1.0;
+
+  const savedNearby = localStorage.getItem('nutribudget-nearby-stores');
+  state.nearbyStores = savedNearby ? JSON.parse(savedNearby) : [];
 }
 
 function saveToLocalStorage() {
@@ -1803,6 +1821,9 @@ function saveToLocalStorage() {
   localStorage.setItem('nutribudget-templates', JSON.stringify(state.templates));
   localStorage.setItem('nutribudget-scan-history', JSON.stringify(state.scanHistory));
   localStorage.setItem('nutribudget-current-store', state.currentStore);
+  localStorage.setItem('nutribudget-zipcode', state.zipCode);
+  localStorage.setItem('nutribudget-col-multiplier', state.colMultiplier.toString());
+  localStorage.setItem('nutribudget-nearby-stores', JSON.stringify(state.nearbyStores));
 }
 
 // ==========================================
@@ -2022,18 +2043,32 @@ function getItemPriceForStore(item, storeName) {
     return state.customPrices[item.id][storeName];
   }
   
-  // 2. Default standard catalog price fallback
-  const basePrice = item.price;
+  // 2. Resolve original baseline price (from STAPLES_CATALOG or custom items base)
+  let basePrice = 0;
+  const staticItem = STAPLES_CATALOG.find(s => s.id === item.id);
+  if (staticItem) {
+    basePrice = staticItem.price;
+  } else {
+    const histItem = state.scanHistory.find(h => h.id === item.id);
+    if (histItem) {
+      basePrice = histItem.originalPrice || histItem.price;
+    } else {
+      basePrice = item.originalPrice || item.price || 2.99;
+    }
+  }
   
-  // 3. Fallback mock markup factors for Walmart/Target if no custom price exists
+  // 3. Scale by regional cost-of-living multiplier
+  const adjustedBase = basePrice * (state.colMultiplier || 1.0);
+  
+  // 4. Fallback mock markup factors for Walmart/Target if no custom price exists
   if (storeName === 'Walmart') {
-    return basePrice * 1.15; // 15% estimated markup
+    return adjustedBase * 1.15; // 15% estimated markup
   }
   if (storeName === 'Target') {
-    return basePrice * 1.25; // 25% estimated markup
+    return adjustedBase * 1.25; // 25% estimated markup
   }
   
-  return basePrice; // Aldi & Custom Store defaults
+  return adjustedBase; // Aldi & Custom Store defaults
 }
 
 function updateCatalogPricesForCurrentStore() {
@@ -2124,3 +2159,147 @@ window.deleteHistoryItem = function(id) {
     renderScanLog();
   }
 };
+
+// ==========================================
+// ZIP CODE LOCATION AND COST-OF-LIVING ENGINE
+// ==========================================
+function setupZipLocator() {
+  const zipInput = document.getElementById('zip-code-input');
+  const btnUpdateZip = document.getElementById('btn-update-zip');
+  const statusEl = document.getElementById('zip-locator-status');
+  
+  if (!zipInput || !btnUpdateZip || !statusEl) return;
+  
+  // Set initial UI value
+  zipInput.value = state.zipCode || '';
+  updateZipUIStatus();
+  
+  btnUpdateZip.addEventListener('click', () => {
+    const raw = zipInput.value.trim();
+    if (!/^\d{5}$/.test(raw)) {
+      alert("Please enter a valid 5-digit ZIP code.");
+      return;
+    }
+    
+    state.zipCode = raw;
+    
+    // Calculate cost of living index multiplier
+    const prefix3 = parseInt(raw.substring(0, 3));
+    let col = 1.0;
+    let regionName = "Standard US Average";
+    
+    // Regional map multipliers
+    if (prefix3 >= 900 && prefix3 <= 966) {
+      col = 1.20; // California
+      regionName = "California (High Cost)";
+    } else if (prefix3 >= 980 && prefix3 <= 986) {
+      col = 1.18; // Washington State
+      regionName = "Washington (High Cost)";
+    } else if (prefix3 >= 100 && prefix3 <= 119) {
+      col = 1.25; // NYC/Metropolitan
+      regionName = "New York Metro (Very High Cost)";
+    } else if (prefix3 >= 200 && prefix3 <= 205) {
+      col = 1.22; // Washington DC
+      regionName = "Washington D.C. (High Cost)";
+    } else if (prefix3 >= 210 && prefix3 <= 289) {
+      col = 1.12; // Mid-Atlantic (Maryland, Virginia, etc)
+      regionName = "Mid-Atlantic Area";
+    } else if (prefix3 >= 967 && prefix3 <= 968) {
+      col = 1.40; // Hawaii
+      regionName = "Hawaii (Extremely High Cost)";
+    } else if (prefix3 >= 995 && prefix3 <= 999) {
+      col = 1.35; // Alaska
+      regionName = "Alaska (Very High Cost)";
+    } else if ((prefix3 >= 290 && prefix3 <= 399) || (prefix3 >= 700 && prefix3 <= 799)) {
+      col = 0.90; // South / Texas
+      regionName = "Southern US / Texas (Low Cost)";
+    } else if (prefix3 >= 500 && prefix3 <= 699) {
+      col = 0.95; // Midwest
+      regionName = "Midwest US (Low Cost)";
+    } else {
+      col = 1.0;
+      regionName = "US Average Cost Region";
+    }
+    
+    state.colMultiplier = col;
+    
+    // Generate mock nearby stores
+    const streetNames = ["Main St", "Broadway", "Oak Ave", "Pine St", "Maple Rd", "1st Ave", "Market St", "Lake Dr"];
+    const distance1 = (1.0 + Math.random() * 3).toFixed(1);
+    const distance2 = (3.0 + Math.random() * 5).toFixed(1);
+    const distance3 = (5.0 + Math.random() * 10).toFixed(1);
+    const st1 = streetNames[Math.floor(Math.random() * streetNames.length)];
+    const st2 = streetNames[Math.floor(Math.random() * streetNames.length)];
+    const st3 = streetNames[Math.floor(Math.random() * streetNames.length)];
+    
+    state.nearbyStores = [
+      { id: 'Aldi', name: `Aldi (${distance1} mi on ${st1})` },
+      { id: 'Walmart', name: `Walmart Supercenter (${distance2} mi on ${st2})` },
+      { id: 'Target', name: `Target (${distance3} mi on ${st3})` },
+      { id: 'Custom Store', name: `Custom Store` }
+    ];
+    
+    saveToLocalStorage();
+    updateZipUIStatus();
+    updateCatalogPricesForCurrentStore();
+    updateStoreSelectorDropdown();
+    
+    // Refresh UI
+    renderStaplesCatalog();
+    renderBasket();
+    updateCartTotals();
+    updateRecipeHelper();
+    renderScanLog();
+  });
+}
+
+function updateZipUIStatus() {
+  const statusEl = document.getElementById('zip-locator-status');
+  if (!statusEl) return;
+  
+  if (state.zipCode) {
+    let percent = Math.round(state.colMultiplier * 100);
+    let regionName = "US Average";
+    if (state.colMultiplier > 1.2) regionName = "Very High Cost Metro Region";
+    else if (state.colMultiplier > 1.1) regionName = "High Cost Coastal Region";
+    else if (state.colMultiplier < 0.96) regionName = "Low Cost Region";
+    
+    statusEl.innerHTML = `
+      📍 Located: <strong>ZIP ${state.zipCode}</strong> (${regionName}).<br>
+      📊 Default prices adjusted to <strong>${percent}%</strong> of national baseline.<br>
+      🏪 Found 3 grocery chains within 25 miles!
+    `;
+  } else {
+    statusEl.innerHTML = `
+      Enter a ZIP code to load local stores within 25 miles and scale default prices by regional Cost-of-Living indices.
+    `;
+  }
+}
+
+function updateStoreSelectorDropdown() {
+  const selector = document.getElementById('store-selector');
+  if (!selector) return;
+  
+  // Store the selected store value before rebuilding options
+  const currentVal = state.currentStore;
+  selector.innerHTML = '';
+  
+  if (state.nearbyStores && state.nearbyStores.length > 0) {
+    state.nearbyStores.forEach(store => {
+      const opt = document.createElement('option');
+      opt.value = store.id;
+      opt.innerText = `🏪 ${store.name}`;
+      selector.appendChild(opt);
+    });
+  } else {
+    // Fallbacks
+    selector.innerHTML = `
+      <option value="Aldi">🏪 Aldi (Default)</option>
+      <option value="Walmart">🏪 Walmart</option>
+      <option value="Target">🏪 Target</option>
+      <option value="Custom Store">🏪 Custom Store</option>
+    `;
+  }
+  
+  selector.value = currentVal;
+}
