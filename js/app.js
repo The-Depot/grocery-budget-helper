@@ -1418,7 +1418,7 @@ function showScannerError(msg) {
 function handleBarcodeDetected(barcode) {
   showScannerLoading();
   
-  const fields = 'product_name,brands,image_front_url,categories_tags,nutriments,nutriscore_grade';
+  const fields = 'product_name,brands,image_front_url,categories_tags,nutriments,nutriscore_grade,ingredients_text';
   const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=${fields}`;
   
   fetch(url)
@@ -1448,7 +1448,8 @@ function displayScannedProduct(barcode, product) {
     imgUrl: product.image_front_url || "",
     nutriscore: product.nutriscore_grade ? product.nutriscore_grade.toLowerCase() : "unknown",
     nutriments: product.nutriments || {},
-    categories: product.categories_tags || []
+    categories: product.categories_tags || [],
+    ingredientsText: product.ingredients_text || "No ingredients listed."
   };
   
   // Set values in UI
@@ -1477,6 +1478,23 @@ function displayScannedProduct(barcode, product) {
   // Guess Food Group from categories tags
   const guessedGroup = guessFoodGroup(currentScannedProduct.categories);
   document.getElementById('scanned-product-group').value = guessedGroup;
+  
+  // Ingredients Audit & Purchase Verdict
+  const audit = parseAndAnalyzeIngredients(currentScannedProduct.ingredientsText, currentScannedProduct.nutriscore);
+  
+  const verdictEl = document.getElementById('scanned-product-verdict');
+  const reasonEl = document.getElementById('scanned-product-verdict-reason');
+  const ingredientsEl = document.getElementById('scanned-product-ingredients');
+  
+  if (verdictEl && reasonEl && ingredientsEl) {
+    verdictEl.innerHTML = audit.verdict;
+    verdictEl.style.backgroundColor = audit.verdictClass === 'verdict-good' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+    verdictEl.style.borderColor = audit.verdictClass === 'verdict-good' ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)';
+    verdictEl.style.color = audit.verdictClass === 'verdict-good' ? 'var(--color-success)' : 'var(--color-danger)';
+    
+    reasonEl.innerHTML = `<strong>Verdict Details:</strong><br>${audit.reason}`;
+    ingredientsEl.innerHTML = audit.highlightedText;
+  }
   
   // Evaluate nutrition warnings & swaps
   evaluateNutritionAndSwaps(currentScannedProduct);
@@ -1635,7 +1653,8 @@ function addScannedProductToCart() {
     protein: currentScannedProduct.nutriments.proteins_100g || currentScannedProduct.nutriments.proteins || 0,
     fiber: currentScannedProduct.nutriments.fiber_100g || currentScannedProduct.nutriments.fiber || 0,
     calcium: rawCalcium,
-    foodGroup: group
+    foodGroup: group,
+    ingredientsText: currentScannedProduct.ingredientsText
   };
 
   if (!existing) {
@@ -1646,6 +1665,7 @@ function addScannedProductToCart() {
     existing.originalPrice = price;
     existing.costPerServing = price;
     existing.foodGroup = group;
+    existing.ingredientsText = currentScannedProduct.ingredientsText;
   }
   
   // Register in scanHistory
@@ -2302,4 +2322,117 @@ function updateStoreSelectorDropdown() {
   }
   
   selector.value = currentVal;
+}
+
+function parseAndAnalyzeIngredients(ingredientsText, nutriscore) {
+  if (!ingredientsText || ingredientsText.trim() === "" || ingredientsText === "No ingredients listed.") {
+    return {
+      verdict: "🟢 GOOD PURCHASE",
+      verdictClass: "verdict-good",
+      reason: "No ingredients listed. Assuming clean/single-ingredient whole foods staple (like eggs, raw meats, or fresh produce).",
+      highlightedText: "No ingredients listed (whole food staple or missing database record)."
+    };
+  }
+
+  // List of bad ingredients to scan for (with regex and reasons)
+  const harmfulIngredients = [
+    {
+      keywords: [/high[- ]fructose[- ]corn[- ]syrup/i, /corn[- ]syrup/i, /fructose/i],
+      name: "High Fructose Corn Syrup",
+      reason: "High sugar impact, raises liver fat, metabolic stress."
+    },
+    {
+      keywords: [/hydrogenated/i, /partially[- ]hydrogenated/i, /trans[- ]fat/i],
+      name: "Hydrogenated Oils (Trans Fats)",
+      reason: "Banned/restricted trans fats that raise bad cholesterol (LDL) and damage heart health."
+    },
+    {
+      keywords: [/palm[- ]oil/i, /palm[- ]kernel[- ]oil/i],
+      name: "Palm Oil",
+      reason: "High saturated fats, often refined, linked to cardiovascular inflammation."
+    },
+    {
+      keywords: [/monosodium[- ]glutamate/i, /msg/i, /yeast[- ]extract/i, /hydrolyzed[- ]protein/i, /sodium[- ]glutamate/i],
+      name: "MSG / Flavor Enhancers",
+      reason: "Excitotoxins that trick your brain into overeating, often masking low-quality ingredients."
+    },
+    {
+      keywords: [/sodium[- ]nitrite/i, /sodium[- ]nitrate/i, /potassium[- ]nitrate/i, /potassium[- ]nitrite/i],
+      name: "Nitrites / Nitrates",
+      reason: "Carcinogenic chemical preservatives heavily linked to colon cancer risk."
+    },
+    {
+      keywords: [/carrageenan/i],
+      name: "Carrageenan",
+      reason: "Thickening agent associated with gut inflammation and digestive distress."
+    },
+    {
+      keywords: [/aspartame/i, /sucralose/i, /acesulfame/i, /saccharin/i, /artificial[- ]sweetener/i],
+      name: "Artificial Sweeteners",
+      reason: "Disrupts gut bacteria, triggers intense sweet cravings, metabolic confusion."
+    },
+    {
+      keywords: [/red[- ]40/i, /yellow[- ]5/i, /yellow[- ]6/i, /blue[- ]1/i, /titanium[- ]dioxide/i, /artificial[- ]color/i],
+      name: "Artificial Dyes / Dyes",
+      reason: "Petroleum-derived colorings associated with hyperactivity in children and gut issues."
+    },
+    {
+      keywords: [/sodium[- ]benzoate/i, /potassium[- ]sorbate/i, /bha/i, /bht/i],
+      name: "Chemical Preservatives",
+      reason: "Synthetic preservatives linked to DNA damage and cellular stress."
+    }
+  ];
+
+  let detectedWarnings = [];
+  let highlightedText = ingredientsText;
+
+  harmfulIngredients.forEach(harm => {
+    let matched = false;
+    harm.keywords.forEach(regex => {
+      // Find all matches to replace in the text
+      const matches = highlightedText.match(regex);
+      if (matches) {
+        matched = true;
+        // Highlight in text
+        highlightedText = highlightedText.replace(regex, (m) => {
+          return `<span style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #f87171; border-radius: 4px; padding: 2px 4px; font-weight: 600; text-shadow: 0 0 1px rgba(0,0,0,0.5);">${m}</span>`;
+        });
+      }
+    });
+
+    if (matched) {
+      detectedWarnings.push(`• <strong>${harm.name}</strong>: ${harm.reason}`);
+    }
+  });
+
+  // Calculate purchase verdict
+  const nutriscoreLower = (nutriscore || '').toLowerCase();
+  const hasBadNutriscore = nutriscoreLower === 'd' || nutriscoreLower === 'e';
+  const hasMajorHarmful = detectedWarnings.length > 0;
+
+  let verdict = "🟢 GOOD PURCHASE";
+  let verdictClass = "verdict-good";
+  let reason = "This food has clean, simple ingredients. It is free from trans fats, high fructose corn syrup, and artificial additives.";
+
+  if (hasMajorHarmful || hasBadNutriscore) {
+    verdict = "🔴 NO PURCHASE";
+    verdictClass = "verdict-bad";
+    
+    let reasons = [];
+    if (hasMajorHarmful) {
+      reasons.push(`Contains harmful chemical additives or refined oils:<br>${detectedWarnings.join('<br>')}`);
+    }
+    if (hasBadNutriscore) {
+      reasons.push(`High levels of saturated fats, sodium, or added sugar (Nutri-Score ${nutriscore.toUpperCase()}).`);
+    }
+    
+    reason = reasons.join('<br><br>');
+  }
+
+  return {
+    verdict,
+    verdictClass,
+    reason,
+    highlightedText
+  };
 }
