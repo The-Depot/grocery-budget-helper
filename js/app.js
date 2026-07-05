@@ -1397,6 +1397,14 @@ function resetScannerUI() {
   document.getElementById('scanned-product-error').style.display = 'none';
   document.getElementById('scanned-health-warning').style.display = 'none';
   document.getElementById('scanned-swap-suggestion').style.display = 'none';
+  
+  const inputA = document.getElementById('scan-price-aldi');
+  const inputW = document.getElementById('scan-price-walmart');
+  const inputT = document.getElementById('scan-price-target');
+  if (inputA) inputA.style.borderColor = '';
+  if (inputW) inputW.style.borderColor = '';
+  if (inputT) inputT.style.borderColor = '';
+  
   currentScannedProduct = null;
 }
 
@@ -1542,6 +1550,9 @@ function displayScannedProduct(barcode, product) {
   // Show data box
   document.getElementById('scanned-product-preview').style.display = 'block';
   document.getElementById('scanned-product-data').style.display = 'block';
+
+  // Trigger live store price lookup concurrently
+  fetchLiveStorePrices(barcode);
 }
 
 function guessFoodGroup(tags) {
@@ -2464,4 +2475,69 @@ function parseAndAnalyzeIngredients(ingredientsText, nutriscore) {
     reason,
     highlightedText
   };
+}
+
+function fetchLiveStorePrices(barcode) {
+  const upcUrl = `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`;
+  
+  fetch(upcUrl)
+    .then(res => {
+      if (!res.ok) throw new Error("UPC DB HTTP Error");
+      return res.json();
+    })
+    .then(data => {
+      if (data && data.items && data.items.length > 0) {
+        const item = data.items[0];
+        const offers = item.offers || [];
+        
+        let walmartPrice = null;
+        let targetPrice = null;
+        let genericPrice = null;
+        
+        offers.forEach(off => {
+          const merchant = off.merchant.toLowerCase();
+          if (merchant.includes('walmart')) {
+            walmartPrice = off.price;
+          } else if (merchant.includes('target')) {
+            targetPrice = off.price;
+          } else if (!genericPrice && off.price > 0.5) {
+            genericPrice = off.price;
+          }
+        });
+        
+        const inputW = document.getElementById('scan-price-walmart');
+        const inputT = document.getElementById('scan-price-target');
+        const inputA = document.getElementById('scan-price-aldi');
+        
+        let updated = false;
+        
+        if (walmartPrice && inputW) {
+          inputW.value = walmartPrice.toFixed(2);
+          inputW.style.borderColor = '#10b981'; // Green border indicating live price loaded
+          updated = true;
+        }
+        if (targetPrice && inputT) {
+          inputT.value = targetPrice.toFixed(2);
+          inputT.style.borderColor = '#10b981';
+          updated = true;
+        }
+        
+        const reference = walmartPrice || targetPrice || genericPrice;
+        if (reference && inputA) {
+          const existingId = `scanned_${barcode}`;
+          if (!state.customPrices[existingId] || state.customPrices[existingId].Aldi === undefined) {
+            const estAldi = reference * 0.85;
+            inputA.value = estAldi.toFixed(2);
+            inputA.style.borderColor = '#10b981';
+          }
+        }
+        
+        if (updated) {
+          console.log(`[NutriBudget] Populated live prices from Upcitemdb for ${barcode}`);
+        }
+      }
+    })
+    .catch(err => {
+      console.warn("Could not retrieve live store prices from Upcitemdb: ", err);
+    });
 }
